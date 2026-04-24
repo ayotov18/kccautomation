@@ -4,22 +4,25 @@
   --font-sans: 'Geist', 'Inter', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-  --color-bg: #0a0a0c;
-  --color-bg-raised: #101114;
-  --color-surface: #14161a;
-  --color-surface-hi: #1b1e23;
-  --color-hairline: #22262c;
-  --color-hairline-hi: #2d3238;
+  /* OKLCH — not #000. Dark pages feel warmer and amber pops ~15% more */
+  --color-bg: oklch(0.14 0.01 260);
+  --color-bg-raised: oklch(0.17 0.01 260);
+  --color-surface: oklch(0.2 0.01 260);
+  --color-surface-hi: oklch(0.235 0.012 260);
+  --color-hairline: oklch(0.27 0.012 260);
+  --color-hairline-hi: oklch(0.32 0.012 260);
 
-  --color-fg: #edeef0;
-  --color-fg-secondary: #b1b4ba;
-  --color-fg-tertiary: #7e8289;
-  --color-fg-quaternary: #555a61;
+  --color-fg: oklch(0.95 0.005 260);
+  --color-fg-secondary: oklch(0.78 0.008 260);
+  --color-fg-tertiary: oklch(0.58 0.01 260);
+  --color-fg-quaternary: oklch(0.4 0.01 260);
 
-  --color-amber: #b87333;
-  --color-amber-soft: #c9904f;
-  --color-steel: #3e5566;
-  --color-steel-soft: #5c7382;
+  --color-amber: oklch(0.72 0.16 55);
+  --color-amber-hot: oklch(0.82 0.19 62);
+  --color-amber-soft: oklch(0.78 0.14 60);
+  --color-bronze: oklch(0.48 0.1 48);
+  --color-steel: oklch(0.4 0.04 240);
+  --color-steel-soft: oklch(0.56 0.04 240);
 }
 
 html,
@@ -29,6 +32,13 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'ss01', 'cv11', 'liga', 'kern';
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
 }
 
 * {
@@ -44,7 +54,40 @@ html {
   color: var(--color-bg);
 }
 
-/* hairline rule utility */
+/* ---------- cinematic depth utilities ---------- */
+
+/* viewport-wide inner vignette (cinematic letterbox feel) */
+.viewport-vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  box-shadow: inset 0 0 260px 40px rgb(0 0 0 / 0.72);
+}
+
+/* section top+bottom mask fade — use to dissolve section edges */
+.section-mask {
+  mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* radial vignette — focuses attention center */
+.radial-reveal {
+  mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 50%, transparent 90%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 50%, transparent 90%);
+}
+
+/* amber hot-spot behind focal element */
+.hot-spot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(600px circle at 20% 30%, oklch(0.72 0.16 55 / 0.14), transparent 60%);
+}
+
+/* hairline rule */
 .hairline {
   background-image: linear-gradient(
     to right,
@@ -57,33 +100,28 @@ html {
   width: 100%;
 }
 
-/* subtle grain overlay (CSS noise) */
+/* grain overlay — 180×180 SVG noise, 4% opacity, overlay blend */
 .grain::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 180px;
   mix-blend-mode: overlay;
-  opacity: 0.35;
+  opacity: 0.3;
   pointer-events: none;
 }
 
-/* marquee */
-@keyframes marquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee {
-  animation: marquee 42s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
+/* global fine grain — fixed overlay */
+.fixed-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0.22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 220px;
+  mix-blend-mode: overlay;
+  opacity: 0.22;
 }
 
 /* engineering grid */
@@ -93,6 +131,30 @@ html {
   background-size: 48px 48px;
   background-position: center center;
   mask-image: radial-gradient(ellipse at center, black 40%, transparent 100%);
+}
+
+/* amber edge glow for floating nav + CTAs */
+.amber-glow {
+  box-shadow:
+    0 0 0 1px oklch(0.72 0.16 55 / 0.2),
+    0 8px 36px -12px oklch(0.72 0.16 55 / 0.35);
+}
+
+/* BorderBeam keyframe */
+@keyframes beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+/* marquee (unused for now, kept for reuse) */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

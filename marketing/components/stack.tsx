@@ -40,8 +40,13 @@ const ROWS = [
 
 export function Stack() {
   return (
-    <section id="stack" className="relative py-24 md:py-36">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="stack" className="relative py-24 md:py-36 overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 80% 30%, oklch(0.72 0.16 55 / 0.06), transparent 55%)' }}
+      />
+      <div className="mx-auto max-w-7xl px-6 relative">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">Stack</Eyebrow>
           <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">

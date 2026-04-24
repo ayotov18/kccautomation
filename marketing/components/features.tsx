@@ -5,6 +5,8 @@ import { Eyebrow } from './eyebrow';
 import { FileCode2, Coins, FileText } from 'lucide-react';
 import { ScrollScene } from './scroll-scene';
 import { HoverVideo } from './hover-video';
+import { ProgressiveBlur } from './ui/progressive-blur';
+import { TextEffect } from './ui/text-effect';
 
 const CARDS = [
   {
@@ -42,12 +44,17 @@ export function Features() {
       minHeight="auto"
       className="py-24 md:py-36"
     >
+      <ProgressiveBlur direction="top" blurIntensity={8} className="h-24" layers={4} />
       <div className="relative">
         <div className="max-w-2xl mb-16">
           <Eyebrow className="mb-4 block">What it does</Eyebrow>
-          <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">
+          <TextEffect
+            as="h2"
+            className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight block"
+            stagger={0.03}
+          >
             Three steps replace an afternoon of spreadsheet work.
-          </h2>
+          </TextEffect>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -58,7 +65,7 @@ export function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-80px' }}
               transition={{ duration: 0.55, delay: i * 0.08, ease: [0.22, 0.61, 0.36, 1] }}
-              className="group relative overflow-hidden rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] h-[460px] flex flex-col"
+              className="group relative overflow-hidden rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] h-[460px] flex flex-col hover:border-[var(--color-amber)]/40 transition-colors"
             >
               <HoverVideo poster={card.image} video={card.video} />
               <div

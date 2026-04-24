@@ -24,9 +24,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="bg-[var(--color-bg)] text-[var(--color-fg)] antialiased">
+      <body className="bg-[var(--color-bg)] text-[var(--color-fg)] antialiased viewport-vignette">
         <LenisProvider />
         {children}
+        <div aria-hidden className="fixed-grain" />
       </body>
     </html>
   );
