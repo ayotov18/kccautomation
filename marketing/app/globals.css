@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-bg: #0a0a0c;
+  --color-bg-raised: #101114;
+  --color-surface: #14161a;
+  --color-surface-hi: #1b1e23;
+  --color-hairline: #22262c;
+  --color-hairline-hi: #2d3238;
+
+  --color-fg: #edeef0;
+  --color-fg-secondary: #b1b4ba;
+  --color-fg-tertiary: #7e8289;
+  --color-fg-quaternary: #555a61;
+
+  --color-amber: #b87333;
+  --color-amber-soft: #c9904f;
+  --color-steel: #3e5566;
+  --color-steel-soft: #5c7382;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  border-color: var(--color-hairline);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-bg);
+}
+
+/* hairline rule utility */
+.hairline {
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--color-hairline) 20%,
+    var(--color-hairline) 80%,
+    transparent 100%
+  );
+  height: 1px;
+  width: 100%;
+}
+
+/* subtle grain overlay (CSS noise) */
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* marquee */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 42s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* engineering grid */
+.grid-bg {
+  background-image: linear-gradient(to right, var(--color-hairline) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-hairline) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center center;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
