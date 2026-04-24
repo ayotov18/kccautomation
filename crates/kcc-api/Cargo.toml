@@ -1,0 +1,52 @@
+[package]
+name = "kcc-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "kcc-api"
+path = "src/main.rs"
+
+[dependencies]
+kcc-core = { path = "../kcc-core" }
+kcc-dxf = { path = "../kcc-dxf" }
+kcc-report = { path = "../kcc-report" }
+erp-core = { path = "../erp-core" }
+erp-boq = { path = "../erp-boq" }
+erp-costs = { path = "../erp-costs" }
+erp-assemblies = { path = "../erp-assemblies" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+
+# Web framework
+axum = { version = "0.8", features = ["multipart"] }
+axum-extra = { version = "0.10", features = ["typed-header"] }
+tower = { version = "0.5", features = ["util", "timeout"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+
+# Auth
+jsonwebtoken = "9"
+argon2 = "0.5"
+
+# S3
+aws-sdk-s3 = "1"
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+
+# Redis
+redis = { version = "0.27", features = ["tokio-comp"] }
+
+# Hashing
+sha2 = "0.10"
+
+# Env
+dotenvy = { workspace = true }

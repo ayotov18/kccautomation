@@ -1,0 +1,14 @@
+[package]
+name = "kcc-dxf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kcc-core = { path = "../kcc-core" }
+dxf = "0.6"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tempfile = "3"

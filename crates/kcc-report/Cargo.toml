@@ -1,0 +1,20 @@
+[package]
+name = "kcc-report"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kcc-core = { path = "../kcc-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# CSV
+csv = "1"
+
+# Excel
+rust_xlsxwriter = "0.80"

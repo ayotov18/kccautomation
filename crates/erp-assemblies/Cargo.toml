@@ -1,0 +1,17 @@
+[package]
+name = "erp-assemblies"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+erp-core = { path = "../erp-core" }
+erp-costs = { path = "../erp-costs" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }

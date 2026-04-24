@@ -1,0 +1,45 @@
+[package]
+name = "kcc-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Geometry
+geo = "0.29"
+nalgebra = "0.33"
+rstar = "0.12"
+
+# Parsing
+nom = "8"
+
+# Parallel computation
+rayon = "1"
+
+# CSV parsing (for price lists)
+csv = "1"
+
+# Database (for DRM retrieval/recording)
+sqlx = { workspace = true }
+
+# Web scraping (BrightData integration)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], optional = true }
+scraper = { version = "0.22", optional = true }
+tokio = { workspace = true, optional = true }
+
+# PDF / XLS extraction for the quantity scraper
+pdf-extract = { version = "0.9", optional = true }
+calamine = { version = "0.30", optional = true }
+regex = { version = "1", optional = true }
+base64 = { version = "0.22", optional = true }
+
+[features]
+default = ["scraping"]
+scraping = ["dep:reqwest", "dep:scraper", "dep:tokio", "dep:pdf-extract", "dep:calamine", "dep:regex", "dep:base64"]

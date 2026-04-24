@@ -1,0 +1,68 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Node
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
+# Backups
+*.dxf.bak
+*.dwg.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# SQLx offline cache
+.sqlx/
+
+# Secrets & keys
+*.pem
+*.key
+*.pfx
+
+# Editor
+*.swp
+*.swo
+
+# Build caches
+.next/
+dist/
+
+# Claude scratch
+.claude/
+.claude.json
+claude.md
+CLAUDE.md
+
+# Reference / research dumps (not part of the build)
+assets/
+assets2/
+analysis/
+research/
+third_party/
+frontend-nextjs-backup/
+apps/cad-viewer/
+packages/
+
+# Large generated reports
+deep-analysis-*.json
+deep-research-*.md
+KSS_PIPELINE_REPORT.md
+
+# .next build output
+.next/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
