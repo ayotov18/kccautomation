@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Upload } from 'lucide-react';
@@ -10,6 +10,14 @@ import { PipelineProgress } from '@/components/progress/PipelineProgress';
 import type { JobStatus } from '@/types';
 
 export default function DrawingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <DrawingsPageInner />
+    </Suspense>
+  );
+}
+
+function DrawingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
