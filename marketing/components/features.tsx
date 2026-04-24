@@ -7,18 +7,21 @@ import { FileCode2, Coins, FileText } from 'lucide-react';
 const CARDS = [
   {
     image: '/assets/gen/feature-blueprint.png',
+    video: '/assets/gen/video-blueprint.mp4',
     icon: FileCode2,
     title: 'The drawing talks back.',
     body: 'Upload a DXF, DWG, or PDF. KCC parses every layer, dimension, block, and annotation — walls, columns, openings, steel members. Spatial index, dimension-to-geometry links, feature extraction, the lot. You get back a structured model of the drawing, not a blob of text.',
   },
   {
     image: '/assets/gen/feature-materials.png',
+    video: '/assets/gen/video-materials.mp4',
     icon: Coins,
     title: 'Live Bulgarian prices, not a 2019 CSV.',
     body: 'KCC maps each quantity to its СЕК cost code, then pulls current market prices — either from supplier pages via the scraping pipeline, or researched on the spot through Perplexity + Claude Opus. Every row shows its price source and confidence.',
   },
   {
     image: '/assets/gen/feature-data.png',
+    video: null as string | null,
     icon: FileText,
     title: 'A КСС you can hand to a client.',
     body: 'Grouped by СЕК, labour + material + mechanisation + overhead broken out, audit trail on every line, ready to export to Excel (ОБРАЗЕЦ 9.1 compatible), PDF, or CSV. Changes you make in the UI feed back as corrections the pipeline learns from.',
@@ -46,15 +49,30 @@ export function Features() {
               transition={{ duration: 0.55, delay: i * 0.08, ease: [0.22, 0.61, 0.36, 1] }}
               className="group relative overflow-hidden rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] h-[460px] flex flex-col"
             >
-              <div
-                className="absolute inset-0 opacity-70 group-hover:opacity-90 transition-opacity duration-500"
-                style={{
-                  backgroundImage: `url('${card.image}')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-                aria-hidden
-              />
+              {card.video ? (
+                <video
+                  aria-hidden
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  poster={card.image}
+                  className="absolute inset-0 h-full w-full object-cover opacity-75 group-hover:opacity-95 transition-opacity duration-500"
+                >
+                  <source src={card.video} type="video/mp4" />
+                </video>
+              ) : (
+                <div
+                  className="absolute inset-0 opacity-70 group-hover:opacity-90 transition-opacity duration-500"
+                  style={{
+                    backgroundImage: `url('${card.image}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                  aria-hidden
+                />
+              )}
               <div
                 aria-hidden
                 className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-raised)] via-[var(--color-bg-raised)]/60 to-transparent"

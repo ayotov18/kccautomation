@@ -7,16 +7,19 @@ import { Eyebrow } from './eyebrow';
 export function Hero() {
   return (
     <section className="relative min-h-[100svh] flex items-center overflow-hidden">
-      {/* Background image — will be swapped for generated hero asset */}
-      <div
+      {/* Video background with PNG fallback / poster */}
+      <video
         aria-hidden
-        className="absolute inset-0 z-0 bg-[var(--color-bg)]"
-        style={{
-          backgroundImage: "url('/assets/gen/hero.png')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center right',
-        }}
-      />
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/assets/gen/hero.png"
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+      >
+        <source src="/assets/gen/video-hero.mp4" type="video/mp4" />
+      </video>
       {/* Radial darken for copy legibility */}
       <div
         aria-hidden
