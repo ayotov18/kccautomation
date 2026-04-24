@@ -48,8 +48,8 @@ claude.md
 CLAUDE.md
 
 # Reference / research dumps (not part of the build)
-assets/
-assets2/
+/assets/
+/assets2/
 analysis/
 research/
 third_party/
