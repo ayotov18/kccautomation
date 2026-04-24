@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   ArrowUp,
   FileSpreadsheet,
@@ -110,7 +110,6 @@ function fuzzyScore(query: string, target: string): number {
 
 export function FloatingCommandBar() {
   const router = useRouter();
-  const pathname = usePathname();
 
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
