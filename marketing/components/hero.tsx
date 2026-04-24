@@ -3,43 +3,30 @@
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { Eyebrow } from './eyebrow';
+import { ScrollScene } from './scroll-scene';
 
 export function Hero() {
   return (
-    <section className="relative min-h-[100svh] flex items-center overflow-hidden">
-      {/* Video background with PNG fallback / poster */}
-      <video
-        aria-hidden
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        poster="/assets/gen/hero.png"
-        className="absolute inset-0 z-0 h-full w-full object-cover"
-      >
-        <source src="/assets/gen/video-hero.mp4" type="video/mp4" />
-      </video>
-      {/* Radial darken for copy legibility */}
-      <div
-        aria-hidden
-        className="absolute inset-0 z-[1] bg-gradient-to-r from-[var(--color-bg)] via-[var(--color-bg)]/85 to-transparent"
-      />
-      <div aria-hidden className="absolute inset-0 z-[2] grid-bg opacity-[0.12] pointer-events-none" />
-      <div aria-hidden className="absolute inset-0 z-[3] grain pointer-events-none" />
-
-      <div className="relative z-10 w-full mx-auto max-w-7xl px-6 pt-32 pb-20">
+    <ScrollScene
+      id="hero"
+      video="/assets/gen/video-bg-hero.mp4"
+      poster="/assets/gen/hero.png"
+      overlay="left"
+      overlayStrength={0.78}
+      scrollLinked
+      minHeight="110svh"
+      className="flex items-center"
+    >
+      <div className="relative pt-40 pb-28">
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+          transition={{ duration: 0.7, ease: [0.22, 0.61, 0.36, 1] }}
           className="max-w-2xl"
         >
-          <Eyebrow className="mb-6 inline-block">
-            Construction estimating, on rails
-          </Eyebrow>
+          <Eyebrow className="mb-6 inline-block">Construction estimating, on rails</Eyebrow>
 
-          <h1 className="text-[clamp(2.25rem,5.5vw,4.75rem)] font-semibold leading-[1.04] tracking-tight text-[var(--color-fg)]">
+          <h1 className="text-[clamp(2.25rem,5.5vw,4.75rem)] font-semibold leading-[1.04] tracking-tight">
             From DXF to КСС in under three minutes.
           </h1>
 
@@ -70,6 +57,6 @@ export function Hero() {
           </p>
         </motion.div>
       </div>
-    </section>
+    </ScrollScene>
   );
 }

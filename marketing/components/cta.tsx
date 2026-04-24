@@ -2,26 +2,21 @@
 
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
+import { ScrollScene } from './scroll-scene';
 
 export function CTA() {
   return (
-    <section id="cta" className="relative py-32 md:py-44 overflow-hidden">
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-70"
-        style={{
-          backgroundImage: "url('/assets/gen/cta.png')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-b from-[var(--color-bg)]/80 via-[var(--color-bg)]/60 to-[var(--color-bg)]"
-      />
-      <div aria-hidden className="absolute inset-0 grain pointer-events-none" />
-
-      <div className="relative mx-auto max-w-4xl px-6 text-center">
+    <ScrollScene
+      id="cta"
+      video="/assets/gen/video-bg-cta.mp4"
+      poster="/assets/gen/cta.png"
+      overlay="center"
+      overlayStrength={0.7}
+      scrollLinked
+      minHeight="auto"
+      className="py-32 md:py-44 overflow-hidden"
+    >
+      <div className="max-w-4xl mx-auto text-center">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -48,6 +43,6 @@ export function CTA() {
           </p>
         </motion.div>
       </div>
-    </section>
+    </ScrollScene>
   );
 }

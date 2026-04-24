@@ -1,6 +1,5 @@
 import { Nav } from '@/components/nav';
 import { Hero } from '@/components/hero';
-import { Marquee } from '@/components/marquee';
 import { Features } from '@/components/features';
 import { Pipeline } from '@/components/pipeline';
 import { Bento } from '@/components/bento';
@@ -17,7 +16,6 @@ export default function HomePage() {
       <Nav />
       <main className="relative">
         <Hero />
-        <Marquee />
         <Features />
         <Pipeline />
         <Bento />
