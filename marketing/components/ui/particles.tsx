@@ -13,8 +13,9 @@ type Props = {
 };
 
 /**
- * Dust-style amber particles — cheap canvas loop, 60 particles default.
- * Reduces to 20 on prefers-reduced-motion.
+ * Dust-style amber particles. Cheap canvas loop.
+ * Visibility-gated: rAF only runs when the canvas is on-screen.
+ * Skipped entirely under prefers-reduced-motion.
  */
 export function Particles({
   quantity = 60,
@@ -26,9 +27,8 @@ export function Particles({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const mouse = useRef({ x: 0, y: 0 });
-  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  const visibleRef = useRef(false);
+  const rafRef = useRef(0);
 
   type Particle = {
     x: number;
@@ -42,26 +42,21 @@ export function Particles({
     dy: number;
     magnetism: number;
   };
+  const particlesRef = useRef<Particle[]>([]);
+  const mouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const count = reduce ? Math.min(20, quantity) : quantity;
-
-    function resize() {
-      if (!container || !canvas) return;
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-      ctx!.scale(dpr, dpr);
-    }
+    const dpr = window.devicePixelRatio || 1;
+    const count = quantity;
 
     function spawn(): Particle {
       const rect = container!.getBoundingClientRect();
@@ -81,6 +76,16 @@ export function Particles({
 
     function init() {
       particlesRef.current = Array.from({ length: count }, spawn);
+    }
+
+    function resize() {
+      if (!container || !canvas) return;
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx!.scale(dpr, dpr);
     }
 
     function draw() {
@@ -106,10 +111,10 @@ export function Particles({
       }
     }
 
-    let raf = 0;
     function tick() {
+      if (!visibleRef.current) return;
       draw();
-      raf = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(tick);
     }
 
     function onMouse(e: MouseEvent) {
@@ -119,19 +124,42 @@ export function Particles({
       mouse.current.y = e.clientY - rect.top - rect.height / 2;
     }
 
-    resize();
-    init();
-    tick();
-    window.addEventListener('resize', () => {
+    function onResize() {
       resize();
       init();
-    });
+    }
+
+    resize();
+    init();
+
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
     window.addEventListener('mousemove', onMouse);
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !visibleRef.current) {
+            visibleRef.current = true;
+            tick();
+          } else if (!e.isIntersecting && visibleRef.current) {
+            visibleRef.current = false;
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = 0;
+          }
+        }
+      },
+      { threshold: 0 },
+    );
+    io.observe(container);
+
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafRef.current);
       window.removeEventListener('mousemove', onMouse);
+      ro.disconnect();
+      io.disconnect();
     };
-  }, [quantity, color, size, staticity, ease, dpr]);
+  }, [quantity, color, size, staticity, ease]);
 
   return (
     <div ref={containerRef} aria-hidden className={cn('pointer-events-none absolute inset-0', className)}>

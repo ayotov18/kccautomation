@@ -1,16 +1,29 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Geist', 'Inter', system-ui, sans-serif;
+  /* Font stack — grotesk + serif + mono */
+  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', ui-serif, Georgia, serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-  /* OKLCH — not #000. Dark pages feel warmer and amber pops ~15% more */
-  --color-bg: oklch(0.14 0.01 260);
-  --color-bg-raised: oklch(0.17 0.01 260);
-  --color-surface: oklch(0.2 0.01 260);
-  --color-surface-hi: oklch(0.235 0.012 260);
-  --color-hairline: oklch(0.27 0.012 260);
-  --color-hairline-hi: oklch(0.32 0.012 260);
+  /* Fluid type scale (Utopia-based, 360 → 1440 viewport) */
+  --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.83rem + 0.22vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.05rem + 0.38vw, 1.375rem);
+  --text-xl: clamp(1.375rem, 1.25rem + 0.62vw, 1.75rem);
+  --text-2xl: clamp(1.75rem, 1.5rem + 1.25vw, 2.5rem);
+  --text-3xl: clamp(2.25rem, 1.85rem + 2vw, 3.5rem);
+  --text-4xl: clamp(3rem, 2.4rem + 3vw, 5rem);
+  --text-5xl: clamp(3.75rem, 2.8rem + 4.75vw, 7rem);
+
+  /* Dark-first OKLCH palette */
+  --color-bg: oklch(0.14 0.012 260);
+  --color-bg-raised: oklch(0.17 0.012 260);
+  --color-surface: oklch(0.2 0.012 260);
+  --color-surface-hi: oklch(0.235 0.014 260);
+  --color-hairline: oklch(0.27 0.014 260);
+  --color-hairline-hi: oklch(0.32 0.014 260);
 
   --color-fg: oklch(0.95 0.005 260);
   --color-fg-secondary: oklch(0.78 0.008 260);
@@ -32,21 +45,35 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'ss01', 'cv11', 'liga', 'kern';
-}
-
-h1,
-h2,
-h3 {
-  letter-spacing: -0.02em;
-}
-
-* {
-  border-color: var(--color-hairline);
+  font-feature-settings: 'ss01', 'cv11', 'liga', 'kern', 'calt';
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Display typography — tracking tightens with size */
+h1,
+h2 {
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+  text-wrap: balance;
+  font-weight: 500;
+}
+h3 {
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  border-color: var(--color-hairline);
 }
 
 ::selection {
@@ -54,31 +81,29 @@ html {
   color: var(--color-bg);
 }
 
-/* ---------- cinematic depth utilities ---------- */
+/* ============================================================
+   Cinematic depth utilities
+   ============================================================ */
 
-/* viewport-wide inner vignette (cinematic letterbox feel) */
 .viewport-vignette::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 40;
-  box-shadow: inset 0 0 260px 40px rgb(0 0 0 / 0.72);
+  box-shadow: inset 0 0 300px 60px rgb(0 0 0 / 0.78);
 }
 
-/* section top+bottom mask fade — use to dissolve section edges */
 .section-mask {
   mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
 }
 
-/* radial vignette — focuses attention center */
 .radial-reveal {
   mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 50%, transparent 90%);
   -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 40%, #000 50%, transparent 90%);
 }
 
-/* amber hot-spot behind focal element */
 .hot-spot::before {
   content: '';
   position: absolute;
@@ -87,7 +112,72 @@ html {
   background: radial-gradient(600px circle at 20% 30%, oklch(0.72 0.16 55 / 0.14), transparent 60%);
 }
 
-/* hairline rule */
+/* ============================================================
+   Liquid Glass class (applied to the card surface container)
+   ============================================================ */
+.liquid-glass {
+  position: relative;
+  background: color-mix(in oklch, white 5%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.22),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.38),
+    inset 0 0 0 1px rgb(255 255 255 / 0.07),
+    0 20px 60px -20px rgb(0 0 0 / 0.7);
+}
+
+/* ============================================================
+   Border shine — animated border light using conic-gradient
+   ============================================================ */
+@property --border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.border-shine {
+  position: relative;
+}
+.border-shine::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 0%,
+    oklch(0.82 0.19 62 / 0.6) 25%,
+    transparent 50%,
+    transparent 100%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  animation: border-spin 8s linear infinite;
+  pointer-events: none;
+  opacity: 0.45;
+  transition: opacity 0.5s;
+}
+.border-shine:hover::before {
+  opacity: 1;
+}
+
+@keyframes border-spin {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+/* ============================================================
+   Hairlines + grid
+   ============================================================ */
 .hairline {
   background-image: linear-gradient(
     to right,
@@ -100,19 +190,18 @@ html {
   width: 100%;
 }
 
-/* grain overlay — 180×180 SVG noise, 4% opacity, overlay blend */
-.grain::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0 0.7 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  background-size: 180px;
-  mix-blend-mode: overlay;
-  opacity: 0.3;
-  pointer-events: none;
+.grid-bg {
+  background-image:
+    linear-gradient(to right, var(--color-hairline) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-hairline) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center center;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 100%);
 }
 
-/* global fine grain — fixed overlay */
+/* ============================================================
+   Grain
+   ============================================================ */
 .fixed-grain {
   position: fixed;
   inset: 0;
@@ -124,30 +213,22 @@ html {
   opacity: 0.22;
 }
 
-/* engineering grid */
-.grid-bg {
-  background-image: linear-gradient(to right, var(--color-hairline) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-hairline) 1px, transparent 1px);
-  background-size: 48px 48px;
-  background-position: center center;
-  mask-image: radial-gradient(ellipse at center, black 40%, transparent 100%);
-}
-
-/* amber edge glow for floating nav + CTAs */
+/* ============================================================
+   Amber glows
+   ============================================================ */
 .amber-glow {
   box-shadow:
     0 0 0 1px oklch(0.72 0.16 55 / 0.2),
     0 8px 36px -12px oklch(0.72 0.16 55 / 0.35);
 }
 
-/* BorderBeam keyframe */
+/* Beam + marquee keyframes */
 @keyframes beam {
   100% {
     offset-distance: 100%;
   }
 }
 
-/* marquee (unused for now, kept for reuse) */
 @keyframes marquee {
   0% {
     transform: translateX(0);
@@ -157,6 +238,9 @@ html {
   }
 }
 
+/* ============================================================
+   Reduced motion
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

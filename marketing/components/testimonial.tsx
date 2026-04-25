@@ -3,6 +3,9 @@
 import { motion } from 'motion/react';
 import { Eyebrow } from './eyebrow';
 import { ScrollScene } from './scroll-scene';
+import { TextEffect } from './ui/text-effect';
+import { LiquidGlass } from './ui/liquid-glass';
+import { ProgressiveSeam } from './ui/edge-bleed';
 
 export function Testimonial() {
   return (
@@ -11,34 +14,42 @@ export function Testimonial() {
       video="/assets/gen/video-bg-testimonial.mp4"
       poster="/assets/gen/testimonial.png"
       overlay="left"
-      overlayStrength={0.82}
+      overlayStrength={0.78}
       scrollLinked
       minHeight="auto"
-      className="py-24 md:py-36 border-y border-[var(--color-hairline)]"
+      className="py-32 md:py-40 relative"
     >
+      <ProgressiveSeam direction="top" height={160} />
+      <ProgressiveSeam direction="bottom" height={160} />
+
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 18 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-60px' }}
-        transition={{ duration: 0.7 }}
+        transition={{ duration: 0.75 }}
         className="max-w-2xl"
       >
         <Eyebrow className="mb-4 block">In production</Eyebrow>
-        <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">
+        <TextEffect
+          as="h2"
+          className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
+          stagger={0.03}
+          triggerOnView
+        >
           Built by people who've priced a thousand drawings by hand.
-        </h2>
-        <p className="mt-6 text-[15px] leading-relaxed text-[var(--color-fg-secondary)]">
+        </TextEffect>
+        <p className="mt-6 text-[length:var(--text-base)] leading-[1.6] text-[var(--color-fg-secondary)]">
           KCC replaces the 2–4 hour manual КСС pass with 2–3 minutes of pipeline work and 5 minutes of
           review. The tool exists because the team building it got tired of the alternative.
         </p>
-        <div className="mt-12 border-l-2 border-[var(--color-amber)] pl-6 max-w-xl">
-          <p className="text-[20px] md:text-[22px] leading-snug tracking-tight text-[var(--color-fg)]">
-            “The first estimating tool I've used that admits when it's guessing.”
+        <LiquidGlass intensity="soft" className="mt-10 p-8 max-w-xl rounded-2xl border-l-2 border-[var(--color-amber)]">
+          <p className="font-[family-name:var(--font-serif-loaded)] italic text-[22px] md:text-[26px] leading-[1.3] tracking-[-0.01em] text-[var(--color-fg)]">
+            &ldquo;The first estimating tool I've used that admits when it's guessing.&rdquo;
           </p>
-          <p className="mt-4 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-fg-quaternary)]">
+          <p className="mt-5 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-fg-quaternary)]">
             — placeholder, to be replaced pre-launch
           </p>
-        </div>
+        </LiquidGlass>
       </motion.div>
     </ScrollScene>
   );

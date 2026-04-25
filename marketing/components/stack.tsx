@@ -2,6 +2,9 @@
 
 import { motion } from 'motion/react';
 import { Eyebrow } from './eyebrow';
+import { TextEffect } from './ui/text-effect';
+import { LiquidGlass } from './ui/liquid-glass';
+import { AccentGleam } from './ui/edge-bleed';
 
 const ROWS = [
   {
@@ -40,42 +43,43 @@ const ROWS = [
 
 export function Stack() {
   return (
-    <section id="stack" className="relative py-24 md:py-36 overflow-hidden">
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 80% 30%, oklch(0.72 0.16 55 / 0.06), transparent 55%)' }}
-      />
+    <section id="stack" className="relative py-32 md:py-44 overflow-hidden">
+      <AccentGleam position={{ right: '10%', top: '10%' }} size={900} opacity={0.1} />
       <div className="mx-auto max-w-7xl px-6 relative">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">Stack</Eyebrow>
-          <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">
+          <TextEffect
+            as="h2"
+            className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
+            stagger={0.03}
+            triggerOnView
+          >
             Rust on the hot path. Everything else where it belongs.
-          </h2>
+          </TextEffect>
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] overflow-hidden">
-          <ul className="divide-y divide-[var(--color-hairline)]">
+        <LiquidGlass intensity="soft" className="rounded-2xl overflow-hidden">
+          <ul className="divide-y divide-white/5">
             {ROWS.map((row, i) => (
               <motion.li
                 key={row.name}
-                initial={{ opacity: 0, x: -8 }}
+                initial={{ opacity: 0, x: -12 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: '-30px' }}
                 transition={{ duration: 0.45, delay: i * 0.04 }}
-                className="group grid grid-cols-1 md:grid-cols-[260px_1fr] px-6 py-5 hover:bg-[var(--color-surface)]/50 transition-colors"
+                className="group grid grid-cols-1 md:grid-cols-[280px_1fr] px-7 py-6 hover:bg-white/[0.03] transition-colors"
               >
                 <span className="font-[family-name:var(--font-mono)] text-[12.5px] uppercase tracking-[0.1em] text-[var(--color-fg)] flex items-center gap-2">
                   <span className="inline-block h-1 w-1 rounded-full bg-[var(--color-amber)]/60 group-hover:bg-[var(--color-amber)] transition-colors" />
                   {row.name}
                 </span>
-                <span className="mt-1 md:mt-0 text-[13.5px] leading-relaxed text-[var(--color-fg-secondary)]">
+                <span className="mt-1 md:mt-0 text-[13.5px] leading-[1.65] text-[var(--color-fg-secondary)]">
                   {row.desc}
                 </span>
               </motion.li>
             ))}
           </ul>
-        </div>
+        </LiquidGlass>
       </div>
     </section>
   );

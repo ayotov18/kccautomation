@@ -8,10 +8,10 @@ import { BorderBeam } from './ui/border-beam';
 import { cn } from '@/lib/cn';
 
 const LINKS = [
-  { href: '#features', label: 'Features' },
-  { href: '#pipeline', label: 'Pipeline' },
-  { href: '#stack', label: 'Stack' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '/features', label: 'Features' },
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/stack', label: 'Stack' },
+  { href: '/changelog', label: 'Changelog' },
 ];
 
 export function Nav() {
@@ -74,14 +74,14 @@ export function Nav() {
 
         <div className="flex items-center gap-1">
           <a
-            href="https://app.kccgen.xyz"
+            href="https://auth.kccgen.xyz"
             className="hidden sm:inline-flex h-8 items-center rounded-full px-3.5 text-[12.5px] text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)] transition-colors"
           >
             Log in
           </a>
           <Magnetic intensity={0.25}>
             <a
-              href="#cta"
+              href="https://auth.kccgen.xyz"
               className="relative inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--color-amber)] px-4 text-[12.5px] font-medium text-[var(--color-bg)] hover:bg-[var(--color-amber-hot)] transition-colors amber-glow"
             >
               Request access

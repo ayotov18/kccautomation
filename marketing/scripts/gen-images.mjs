@@ -11,9 +11,11 @@ import { IMAGE_PROMPTS } from './prompts.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '../public/assets/gen');
 
-const KEY =
-  process.env.OPENROUTER_API_KEY ||
-  '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';
+const KEY = process.env.OPENROUTER_API_KEY;
+if (!KEY) {
+  console.error('Set OPENROUTER_API_KEY before running.');
+  process.exit(1);
+}
 
 async function generateOne(slug, prompt) {
   const outPath = path.join(OUT, `${slug}.png`);

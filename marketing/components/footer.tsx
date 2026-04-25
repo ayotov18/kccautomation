@@ -2,10 +2,10 @@ const COLUMNS = [
   {
     label: 'Product',
     links: [
-      { name: 'Features', href: '#features' },
-      { name: 'Pipeline', href: '#pipeline' },
-      { name: 'Stack', href: '#stack' },
-      { name: 'Pricing (soon)', href: '#' },
+      { name: 'Features', href: '/features' },
+      { name: 'How it works', href: '/how-it-works' },
+      { name: 'Stack', href: '/stack' },
+      { name: 'Changelog', href: '/changelog' },
     ],
   },
   {

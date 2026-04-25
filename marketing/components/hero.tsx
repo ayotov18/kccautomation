@@ -9,6 +9,10 @@ import { Magnetic } from './ui/magnetic';
 import { BorderBeam } from './ui/border-beam';
 import { Particles } from './ui/particles';
 import { NumberTicker } from './ui/number-ticker';
+import { ProgressiveSeam, AccentGleam } from './ui/edge-bleed';
+import dynamic from 'next/dynamic';
+
+const Threads = dynamic(() => import('./backgrounds/threads'), { ssr: false });
 
 export function Hero() {
   return (
@@ -17,14 +21,17 @@ export function Hero() {
       video="/assets/gen/video-bg-hero.mp4"
       poster="/assets/gen/hero.png"
       overlay="left"
-      overlayStrength={0.78}
+      overlayStrength={0.76}
       scrollLinked
-      minHeight="110svh"
+      minHeight="112svh"
       className="flex items-center"
     >
-      <Particles quantity={70} className="z-[4]" />
+      <Threads className="absolute inset-0 z-[3] opacity-[0.35]" amplitude={0.6} distance={0.12} />
+      <Particles quantity={30} className="z-[4]" />
+      <AccentGleam position={{ left: '30%', bottom: '-10%' }} size={900} opacity={0.16} />
+      <ProgressiveSeam direction="bottom" height={200} className="z-[5]" />
 
-      <div className="relative pt-44 pb-28 z-10">
+      <div className="relative pt-44 pb-32 z-10">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -35,7 +42,7 @@ export function Hero() {
 
           <TextEffect
             as="h1"
-            className="text-[clamp(2.25rem,5.5vw,4.75rem)] font-semibold leading-[1.04] tracking-tight block"
+            className="text-[length:var(--text-4xl)] md:text-[length:var(--text-5xl)] leading-[1.02] tracking-[-0.035em] font-medium"
             stagger={0.06}
           >
             From DXF to КСС in under three minutes.
@@ -44,8 +51,8 @@ export function Hero() {
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-6 text-[15px] md:text-[17px] leading-relaxed text-[var(--color-fg-secondary)] max-w-xl"
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="mt-8 text-[length:var(--text-lg)] leading-[1.55] text-[var(--color-fg-secondary)] max-w-[52ch]"
           >
             Upload the drawing. The pipeline reads every layer, pulls live Bulgarian market prices, and
             returns a priced КСС with an audit trail for every row.
@@ -54,12 +61,12 @@ export function Hero() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.75 }}
+            transition={{ duration: 0.6, delay: 0.85 }}
             className="mt-10 flex flex-wrap items-center gap-4"
           >
             <Magnetic intensity={0.3}>
               <a
-                href="#cta"
+                href="https://auth.kccgen.xyz"
                 className="group relative inline-flex h-12 items-center gap-2 overflow-hidden rounded-full bg-[var(--color-amber)] px-7 text-[14px] font-medium text-[var(--color-bg)] transition-colors hover:bg-[var(--color-amber-hot)] amber-glow"
               >
                 <BorderBeam size={120} duration={6} colorFrom="oklch(1 0 0 / 0.7)" colorTo="oklch(1 0 0 / 0)" />
@@ -79,18 +86,23 @@ export function Hero() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.95 }}
-            className="mt-16 grid grid-cols-3 gap-6 max-w-lg"
+            transition={{ duration: 0.6, delay: 1.05 }}
+            className="mt-20 grid grid-cols-3 gap-6 max-w-lg"
           >
             {[
               { v: 21, s: 'migrations' },
               { v: 49, s: 'СЕК codes', prefix: 'SEK01–' },
               { v: 3, s: 'export formats' },
             ].map((stat) => (
-              <div key={stat.s} className="border-l border-[var(--color-hairline-hi)] pl-4">
-                <div className="font-[family-name:var(--font-mono)] text-[22px] md:text-[26px] text-[var(--color-amber)] tabular-nums">
+              <div
+                key={stat.s}
+                className="liquid-glass rounded-xl px-4 py-4 border-l border-[var(--color-hairline-hi)]"
+              >
+                <div className="font-[family-name:var(--font-mono)] text-[22px] md:text-[26px] text-[var(--color-amber)] tabular-nums tracking-[-0.02em]">
                   {stat.prefix && (
-                    <span className="text-[var(--color-fg-tertiary)] text-[14px] mr-0.5">{stat.prefix}</span>
+                    <span className="text-[var(--color-fg-tertiary)] text-[14px] mr-0.5">
+                      {stat.prefix}
+                    </span>
                   )}
                   <NumberTicker value={stat.v} />
                 </div>

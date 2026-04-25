@@ -11,7 +11,11 @@ import { VIDEO_SHOTS } from './prompts.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '../public/assets/gen');
 
-const KIE_KEY = process.env.KIE_API_KEY || '92d86ec39c86d80da972c68ef8c74a86';
+const KIE_KEY = process.env.KIE_API_KEY;
+if (!KIE_KEY) {
+  console.error('Set KIE_API_KEY before running.');
+  process.exit(1);
+}
 
 const AWS = {
   region: process.env.AWS_REGION || 'us-east-1',

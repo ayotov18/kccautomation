@@ -5,6 +5,9 @@ import { useRef, useState, useEffect } from 'react';
 import { Eyebrow } from './eyebrow';
 import { Upload, ScanLine, Banknote, FileCheck2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { TextEffect } from './ui/text-effect';
+import { LiquidGlass } from './ui/liquid-glass';
+import { ProgressiveSeam } from './ui/edge-bleed';
 
 const PHASES = [
   {
@@ -56,9 +59,11 @@ export function Pipeline() {
 
   useEffect(() => {
     return scrollYProgress.on('change', (p) => {
-      // Map the middle 60% of the section to the 4 phases
+      // Map the middle 60% of the section to the 4 phases.
+      // Only setState when the integer phase index actually changes — avoids 60 renders/sec.
       const local = Math.min(Math.max((p - 0.2) / 0.6, 0), 0.9999);
-      setActiveIdx(Math.floor(local * PHASES.length));
+      const next = Math.floor(local * PHASES.length);
+      setActiveIdx((prev) => (prev === next ? prev : next));
     });
   }, [scrollYProgress]);
 
@@ -77,13 +82,21 @@ export function Pipeline() {
       />
       <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 20% 20%, rgba(184,115,51,0.08), transparent 50%)' }} />
 
-      <div className="relative mx-auto max-w-7xl px-6 pt-24 md:pt-32 pb-24 md:pb-32">
+      <ProgressiveSeam direction="top" height={140} />
+      <ProgressiveSeam direction="bottom" height={140} />
+
+      <div className="relative mx-auto max-w-7xl px-6 pt-32 md:pt-40 pb-32 md:pb-40">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">The pipeline</Eyebrow>
-          <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">
+          <TextEffect
+            as="h2"
+            className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
+            stagger={0.04}
+            triggerOnView
+          >
             Four services, one pipeline.
-          </h2>
-          <p className="mt-5 text-[15px] leading-relaxed text-[var(--color-fg-secondary)]">
+          </TextEffect>
+          <p className="mt-6 text-[length:var(--text-base)] leading-[1.6] text-[var(--color-fg-secondary)]">
             Every stage runs in isolation — the API takes uploads, the worker handles the heavy lifting,
             Postgres keeps state, Redis runs the queue. Scroll to walk through it.
           </p>
@@ -145,7 +158,7 @@ export function Pipeline() {
 
           {/* Right — sticky phase image, swaps with scroll */}
           <div className="lg:sticky lg:top-24 lg:h-[min(72vh,640px)]">
-            <div className="relative h-full w-full rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] overflow-hidden aspect-square lg:aspect-auto">
+            <LiquidGlass intensity="standard" className="relative h-full w-full overflow-hidden aspect-square lg:aspect-auto rounded-2xl">
               {PHASES.map((p, i) => (
                 <motion.div
                   key={p.key}
@@ -194,7 +207,7 @@ export function Pipeline() {
                   <ArrowRight className="h-3.5 w-3.5 text-[var(--color-amber)]" strokeWidth={1.75} />
                 </span>
               </div>
-            </div>
+            </LiquidGlass>
           </div>
         </div>
 

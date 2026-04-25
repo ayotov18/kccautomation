@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, type Transition } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/lib/cn';
 
 type Props = {
@@ -9,41 +9,58 @@ type Props = {
   className?: string;
   delay?: number;
   stagger?: number;
-  by?: 'word' | 'char';
+  triggerOnView?: boolean;
 };
 
-const spring: Transition = { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 };
-
+/**
+ * Canonical word-by-word reveal.
+ * - per-word CLIP wrapper (overflow:hidden, display:inline-block, align-bottom)
+ * - padding-bottom on clip to accommodate descenders
+ * - NBSP between words so flex gaps don't break spacing
+ * - text-wrap:balance on the outer tag to prevent orphan words
+ */
 export function TextEffect({
   children,
   as: Tag = 'h1',
   className,
   delay = 0,
-  stagger = 0.055,
-  by = 'word',
+  stagger = 0.05,
+  triggerOnView = false,
 }: Props) {
-  const units = by === 'word' ? children.split(/(\s+)/) : Array.from(children);
+  const words = children.split(' ');
+
+  const word = (w: string, i: number) => (
+    <span
+      key={i}
+      aria-hidden
+      className="inline-block overflow-hidden align-bottom leading-[1.05] pb-[0.18em]"
+      style={{ verticalAlign: 'bottom' }}
+    >
+      <motion.span
+        className="inline-block will-change-transform"
+        initial={{ y: '115%' }}
+        {...(triggerOnView
+          ? { whileInView: { y: '0%' }, viewport: { once: true, margin: '-10%' } }
+          : { animate: { y: '0%' } })}
+        transition={{
+          duration: 0.75,
+          ease: [0.22, 1, 0.36, 1],
+          delay: delay + i * stagger,
+        }}
+      >
+        {w}
+      </motion.span>
+      {i < words.length - 1 && ' '}
+    </span>
+  );
 
   return (
-    <Tag className={cn('inline-block', className)}>
-      <span aria-hidden className="inline-block">
-        {units.map((unit, i) => {
-          if (unit === ' ' || unit.trim() === '') return <span key={i}>&nbsp;</span>;
-          return (
-            <motion.span
-              key={i}
-              initial={{ y: '120%', opacity: 0 }}
-              animate={{ y: '0%', opacity: 1 }}
-              transition={{ ...spring, delay: delay + i * stagger }}
-              style={{ display: 'inline-block', willChange: 'transform' }}
-            >
-              {unit}
-              {by === 'word' && i < units.length - 1 && ' '}
-            </motion.span>
-          );
-        })}
-      </span>
-      <span className="sr-only">{children}</span>
+    <Tag
+      className={cn('block text-balance', className)}
+      style={{ textWrap: 'balance' }}
+      aria-label={children}
+    >
+      {words.map(word)}
     </Tag>
   );
 }

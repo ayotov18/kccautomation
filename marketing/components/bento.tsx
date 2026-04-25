@@ -5,6 +5,9 @@ import { Eyebrow } from './eyebrow';
 import { Gauge, Layers, Search, FileBadge, FileSpreadsheet } from 'lucide-react';
 import { ScrollScene } from './scroll-scene';
 import { HoverVideo } from './hover-video';
+import { TextEffect } from './ui/text-effect';
+import { SpotlightCard } from './ui/spotlight-card';
+import { ProgressiveSeam } from './ui/edge-bleed';
 
 const TILES = [
   {
@@ -64,47 +67,61 @@ export function Bento() {
       overlayStrength={0.92}
       scrollLinked
       minHeight="auto"
-      className="py-24 md:py-36 border-t border-[var(--color-hairline)]"
+      className="py-32 md:py-44 relative"
     >
+      <ProgressiveSeam direction="top" height={160} />
+
       <div className="relative">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">Under the hood</Eyebrow>
-          <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.08] tracking-tight">
+          <TextEffect
+            as="h2"
+            className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
+            stagger={0.03}
+            triggerOnView
+          >
             Confidence on every number, not just the ones the demo shows.
-          </h2>
+          </TextEffect>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:auto-rows-[220px]">
           {TILES.map((tile, i) => (
             <motion.div
               key={tile.title}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.55, delay: i * 0.06 }}
-              className={`${tile.span} group relative overflow-hidden rounded-2xl border border-[var(--color-hairline)] bg-[var(--color-bg-raised)] flex flex-col min-h-[220px]`}
+              transition={{ duration: 0.6, delay: i * 0.06 }}
+              className={tile.span + ' min-h-[220px]'}
             >
-              <HoverVideo
-                poster={tile.poster}
-                video={tile.video}
-                idleOpacity={0.35}
-                activeOpacity={0.85}
-              />
-              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-raised)] via-[var(--color-bg-raised)]/70 to-transparent" />
-              <div className="relative flex h-full flex-col justify-between p-6">
-                <div>
-                  <div className="mb-4 inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-hairline-hi)] bg-[var(--color-surface)]/80 backdrop-blur">
-                    <tile.icon className="h-4 w-4 text-[var(--color-amber)]" strokeWidth={1.75} />
+              <SpotlightCard className="border-shine liquid-glass h-full rounded-2xl overflow-hidden relative">
+                <HoverVideo
+                  poster={tile.poster}
+                  video={tile.video}
+                  idleOpacity={0.3}
+                  activeOpacity={0.88}
+                />
+                <div
+                  aria-hidden
+                  className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-raised)]/95 via-[var(--color-bg-raised)]/60 to-transparent"
+                />
+                <div className="relative flex h-full flex-col justify-between p-6">
+                  <div>
+                    <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+                      <tile.icon className="h-4 w-4 text-[var(--color-amber)]" strokeWidth={1.75} />
+                    </div>
+                    <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-fg-quaternary)] mb-2">
+                      {tile.eyebrow}
+                    </div>
+                    <h3 className="text-[length:var(--text-lg)] font-semibold leading-[1.15] tracking-[-0.015em]">
+                      {tile.title}
+                    </h3>
                   </div>
-                  <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-fg-quaternary)] mb-2">
-                    {tile.eyebrow}
-                  </div>
-                  <h3 className="text-[17px] font-semibold leading-snug tracking-tight">{tile.title}</h3>
+                  <p className="mt-4 text-[13px] leading-[1.6] text-[var(--color-fg-secondary)]">
+                    {tile.body}
+                  </p>
                 </div>
-                <p className="mt-4 text-[13px] leading-relaxed text-[var(--color-fg-secondary)]">
-                  {tile.body}
-                </p>
-              </div>
+              </SpotlightCard>
             </motion.div>
           ))}
         </div>
