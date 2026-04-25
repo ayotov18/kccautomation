@@ -61,6 +61,7 @@ export default function StackPage() {
         title="Rust on the hot path. Everything else where it belongs."
         sub="Nine crates in one workspace, Postgres 16 with sqlx-managed migrations, Redis-backed queues, and a Next.js 15 operator UI. Compile-time SQL, hexagonal-ish boundaries, no surprises in production."
         hero="/assets/gen/page-stack-hero.png"
+        variant="stack"
       >
         {/* Crate grid */}
         <section className="relative py-32 md:py-40 overflow-hidden">

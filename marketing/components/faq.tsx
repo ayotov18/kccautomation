@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus } from 'lucide-react';
 import { Eyebrow } from './eyebrow';
 import { cn } from '@/lib/cn';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
 import { LiquidGlass } from './ui/liquid-glass';
 
 const QA = [
@@ -66,14 +66,15 @@ export function Faq() {
             <div className="relative h-full flex flex-col justify-between p-8 md:p-10 z-10">
               <div>
                 <Eyebrow className="mb-4 block">Questions</Eyebrow>
-                <TextEffect
+                <TextAnimate
                   as="h2"
+                  animation="slideLeft"
+                  by="word"
+                  duration={0.55}
                   className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
-                  stagger={0.04}
-                  triggerOnView
                 >
                   Things people ask in the first demo call.
-                </TextEffect>
+                </TextAnimate>
               </div>
               <p className="text-[13px] font-[family-name:var(--font-mono)] uppercase tracking-[0.16em] text-[var(--color-fg-quaternary)]">
                 Still have one? hello@kccgen.xyz

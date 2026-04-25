@@ -3,7 +3,8 @@
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { ScrollScene } from './scroll-scene';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
+import { LineShadowText } from './ui/line-shadow-text';
 import { Magnetic } from './ui/magnetic';
 import { BorderBeam } from './ui/border-beam';
 import { ProgressiveSeam, AccentGleam } from './ui/edge-bleed';
@@ -30,14 +31,24 @@ export function CTA() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.8 }}
         >
-          <TextEffect
-            as="h2"
-            className="text-[length:var(--text-4xl)] leading-[1.04] tracking-[-0.03em] font-medium"
-            stagger={0.045}
-            triggerOnView
-          >
-            Ready to stop retyping spreadsheets?
-          </TextEffect>
+          <h2 className="text-[length:var(--text-4xl)] leading-[1.04] tracking-[-0.03em] font-medium">
+            <TextAnimate
+              as="span"
+              animation="blurInUp"
+              by="word"
+              duration={0.55}
+              className="block"
+            >
+              Ready to stop
+            </TextAnimate>
+            <LineShadowText
+              as="span"
+              shadowColor="oklch(0.82 0.19 62)"
+              className="text-[var(--color-fg)] italic font-[family-name:var(--font-serif-loaded)]"
+            >
+              retyping spreadsheets?
+            </LineShadowText>
+          </h2>
           <p className="mt-8 text-[length:var(--text-base)] leading-[1.6] text-[var(--color-fg-secondary)] max-w-xl mx-auto">
             Request access and we'll show you the full pipeline on one of your own drawings.
           </p>

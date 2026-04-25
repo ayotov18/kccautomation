@@ -53,6 +53,7 @@ export default function HowItWorksPage() {
         title="From DXF to КСС, four services, one path."
         sub="Upload, parse, price, export — every stage runs in isolation, every state change is auditable, and the median end-to-end is under three minutes."
         hero="/assets/gen/page-pipeline-hero.png"
+        variant="how-it-works"
       >
         {/* Stage table */}
         <section className="relative py-32 md:py-40 overflow-hidden">

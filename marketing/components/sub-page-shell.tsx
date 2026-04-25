@@ -3,23 +3,86 @@
 import { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Eyebrow } from './eyebrow';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
+import { HyperText } from './ui/hyper-text';
+import { AnimatedShinyText } from './ui/animated-shiny-text';
 import { ProgressiveSeam, AccentGleam } from './ui/edge-bleed';
+
+type HeadlineVariant =
+  | 'features'
+  | 'how-it-works'
+  | 'stack'
+  | 'changelog';
 
 type Props = {
   eyebrow: string;
   title: string;
   sub: string;
   hero: string;
+  variant: HeadlineVariant;
   children: ReactNode;
 };
 
 /**
  * Sub-page hero shell. Static poster image only — no Threads (WebGL) or Particles
- * canvas, to keep memory low when navigating between pages.
- * Threads + heavy canvas live only on the home page.
+ * canvas, to keep memory low when navigating between pages. Threads + heavy canvas
+ * live only on the home page. The `variant` prop picks a distinct text animation
+ * for the H1 so each page has its own signature entrance.
  */
-export function SubPageShell({ eyebrow, title, sub, hero, children }: Props) {
+export function SubPageShell({ eyebrow, title, sub, hero, variant, children }: Props) {
+  const headlineClass =
+    'text-[length:var(--text-4xl)] leading-[1.04] tracking-[-0.035em] font-medium';
+
+  let headline: ReactNode;
+  switch (variant) {
+    case 'features':
+      headline = (
+        <TextAnimate
+          as="h1"
+          animation="blurInUp"
+          by="character"
+          duration={1.1}
+          className={headlineClass}
+        >
+          {title}
+        </TextAnimate>
+      );
+      break;
+    case 'how-it-works':
+      headline = (
+        <TextAnimate
+          as="h1"
+          animation="slideUp"
+          by="word"
+          duration={0.6}
+          className={headlineClass}
+        >
+          {title}
+        </TextAnimate>
+      );
+      break;
+    case 'stack':
+      headline = (
+        <HyperText as="h1" className={headlineClass} duration={1100} startOnView>
+          {title}
+        </HyperText>
+      );
+      break;
+    case 'changelog':
+      headline = (
+        <TextAnimate
+          as="h1"
+          animation="slideRight"
+          by="word"
+          duration={0.6}
+          className={headlineClass}
+        >
+          {title}
+        </TextAnimate>
+      );
+      break;
+  }
+
   return (
     <main className="relative">
       <section className="relative min-h-[80svh] flex items-center overflow-hidden">
@@ -46,14 +109,10 @@ export function SubPageShell({ eyebrow, title, sub, hero, children }: Props) {
             transition={{ duration: 0.6 }}
             className="max-w-3xl"
           >
-            <Eyebrow className="mb-6 inline-block">{eyebrow}</Eyebrow>
-            <TextEffect
-              as="h1"
-              className="text-[length:var(--text-4xl)] leading-[1.04] tracking-[-0.035em] font-medium"
-              stagger={0.05}
-            >
-              {title}
-            </TextEffect>
+            <Eyebrow className="mb-6 inline-block">
+              <AnimatedShinyText shimmerWidth={120}>{eyebrow}</AnimatedShinyText>
+            </Eyebrow>
+            {headline}
             <motion.p
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}

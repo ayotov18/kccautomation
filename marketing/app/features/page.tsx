@@ -76,6 +76,7 @@ export default function FeaturesPage() {
         title="Every layer parsed, every quantity scored, every price cited."
         sub="Six parsing capabilities, six extraction methods, three pricing sources, three export formats — and a confidence number on every single row."
         hero="/assets/gen/page-features-hero.png"
+        variant="features"
       >
         {/* Parsing */}
         <section className="relative py-32 md:py-40 overflow-hidden">
@@ -188,7 +189,7 @@ export default function FeaturesPage() {
               </TextEffect>
               <div className="mt-8 space-y-4">
                 {EXPORTS.map((it) => (
-                  <SpotlightCard key={it.h} className="liquid-glass rounded-xl p-6">
+                  <SpotlightCard key={it.h} className="liquid-glass border-shine border-shine-cool rounded-xl p-6">
                     <div className="flex items-start gap-4">
                       <div className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
                         <it.icon className="h-4 w-4 text-[var(--color-amber)]" strokeWidth={1.75} />
@@ -218,7 +219,7 @@ export default function FeaturesPage() {
               </TextEffect>
               <div className="mt-8 space-y-4">
                 {AUDIT.map((it) => (
-                  <SpotlightCard key={it.h} className="liquid-glass rounded-xl p-6">
+                  <SpotlightCard key={it.h} className="liquid-glass border-shine border-shine-cool rounded-xl p-6">
                     <div className="flex items-start gap-4">
                       <div className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
                         <it.icon className="h-4 w-4 text-[var(--color-amber)]" strokeWidth={1.75} />

@@ -5,8 +5,9 @@ import { Eyebrow } from './eyebrow';
 import { Gauge, Layers, Search, FileBadge, FileSpreadsheet } from 'lucide-react';
 import { ScrollScene } from './scroll-scene';
 import { HoverVideo } from './hover-video';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
 import { SpotlightCard } from './ui/spotlight-card';
+import { ShineBorder } from './ui/shine-border';
 import { ProgressiveSeam } from './ui/edge-bleed';
 
 const TILES = [
@@ -74,14 +75,15 @@ export function Bento() {
       <div className="relative">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">Under the hood</Eyebrow>
-          <TextEffect
+          <TextAnimate
             as="h2"
+            animation="slideUp"
+            by="word"
+            duration={0.5}
             className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
-            stagger={0.03}
-            triggerOnView
           >
             Confidence on every number, not just the ones the demo shows.
-          </TextEffect>
+          </TextAnimate>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:auto-rows-[220px]">
@@ -95,6 +97,11 @@ export function Bento() {
               className={tile.span + ' min-h-[220px]'}
             >
               <SpotlightCard className="border-shine liquid-glass h-full rounded-2xl overflow-hidden relative">
+                <ShineBorder
+                  borderWidth={1}
+                  duration={14 + (i % 3) * 4}
+                  shineColor={['oklch(0.82 0.19 62 / 0.55)', 'transparent', 'oklch(0.78 0.14 60 / 0.4)']}
+                />
                 <HoverVideo
                   poster={tile.poster}
                   video={tile.video}

@@ -5,7 +5,8 @@ import { Eyebrow } from './eyebrow';
 import { FileCode2, Coins, FileText } from 'lucide-react';
 import { ScrollScene } from './scroll-scene';
 import { HoverVideo } from './hover-video';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
+import { ShineBorder } from './ui/shine-border';
 import { SpotlightCard } from './ui/spotlight-card';
 import { ProgressiveSeam, AccentGleam } from './ui/edge-bleed';
 
@@ -54,14 +55,15 @@ export function Features() {
       <div className="relative">
         <div className="max-w-2xl mb-16">
           <Eyebrow className="mb-4 block">What it does</Eyebrow>
-          <TextEffect
+          <TextAnimate
             as="h2"
+            animation="blurIn"
+            by="character"
+            duration={0.8}
             className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
-            stagger={0.04}
-            triggerOnView
           >
             Three steps replace an afternoon of spreadsheet work.
-          </TextEffect>
+          </TextAnimate>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -75,6 +77,11 @@ export function Features() {
               className="h-[500px]"
             >
               <SpotlightCard className="border-shine liquid-glass h-full flex flex-col rounded-2xl overflow-hidden">
+                <ShineBorder
+                  borderWidth={1}
+                  duration={16 + i * 3}
+                  shineColor={['oklch(0.82 0.19 62 / 0.55)', 'transparent', 'oklch(0.78 0.14 60 / 0.4)']}
+                />
                 <div className="relative h-[58%] overflow-hidden">
                   <HoverVideo
                     poster={card.image}

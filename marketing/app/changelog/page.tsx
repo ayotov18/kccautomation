@@ -81,6 +81,7 @@ export default function ChangelogPage() {
         title="Twenty-one migrations. Every one of them solved a real problem."
         sub="Four phases since the project began: foundation, price intelligence, auditability, refinement. Each entry shipped because somebody on the team got tired of the workaround."
         hero="/assets/gen/page-changelog-hero.png"
+        variant="changelog"
       >
         <section className="relative py-32 md:py-40 overflow-hidden">
           <ProgressiveSeam direction="top" height={160} />
@@ -90,7 +91,7 @@ export default function ChangelogPage() {
               {/* Phase nav */}
               <div className="lg:sticky lg:top-28 lg:self-start space-y-3">
                 {PHASES.map((p, i) => (
-                  <SpotlightCard key={p.key} className="liquid-glass rounded-2xl p-6">
+                  <SpotlightCard key={p.key} className="liquid-glass border-shine rounded-2xl p-6">
                     <div className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-fg-quaternary)] mb-2">
                       Phase {String(i + 1).padStart(2, '0')} · {p.range}
                     </div>

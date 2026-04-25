@@ -36,6 +36,12 @@
   --color-bronze: oklch(0.48 0.1 48);
   --color-steel: oklch(0.4 0.04 240);
   --color-steel-soft: oklch(0.56 0.04 240);
+
+  /* Animated text + border keyframes (Tailwind v4 registers them as utilities) */
+  --animate-shine: shine var(--duration, 12s) infinite linear;
+  --animate-shiny-text: shiny-text 2.5s infinite linear;
+  --animate-line-shadow: line-shadow 18s linear infinite;
+  --animate-aurora: aurora 10s ease infinite alternate;
 }
 
 html,
@@ -148,8 +154,9 @@ p {
   background: conic-gradient(
     from var(--border-angle),
     transparent 0%,
-    oklch(0.82 0.19 62 / 0.6) 25%,
-    transparent 50%,
+    oklch(0.82 0.19 62 / 0.95) 12%,
+    oklch(0.92 0.1 90 / 0.7) 18%,
+    transparent 32%,
     transparent 100%
   );
   mask:
@@ -160,13 +167,27 @@ p {
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
-  animation: border-spin 8s linear infinite;
+  animation: border-spin 9s linear infinite;
   pointer-events: none;
-  opacity: 0.45;
+  opacity: 0.85;
   transition: opacity 0.5s;
 }
 .border-shine:hover::before {
   opacity: 1;
+  animation-duration: 4s;
+}
+
+/* Cool variant — steel-blue traveling arc, longer cycle */
+.border-shine-cool::before {
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 0%,
+    oklch(0.56 0.04 240 / 0.9) 12%,
+    oklch(0.78 0.04 240 / 0.65) 20%,
+    transparent 35%,
+    transparent 100%
+  );
+  animation-duration: 14s;
 }
 
 @keyframes border-spin {
@@ -236,6 +257,28 @@ p {
   100% {
     transform: translateX(-50%);
   }
+}
+
+@keyframes shine {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes shiny-text {
+  0%, 90%, 100% { background-position: calc(-100% - var(--shiny-width, 100px)) 0; }
+  30%, 60% { background-position: calc(100% + var(--shiny-width, 100px)) 0; }
+}
+
+@keyframes line-shadow {
+  0% { background-position: 0 0; }
+  100% { background-position: 100% -100%; }
+}
+
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* ============================================================

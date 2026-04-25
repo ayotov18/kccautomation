@@ -5,7 +5,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Eyebrow } from './eyebrow';
 import { Upload, ScanLine, Banknote, FileCheck2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { TextEffect } from './ui/text-effect';
+import { TextAnimate } from './ui/text-animate';
 import { LiquidGlass } from './ui/liquid-glass';
 import { ProgressiveSeam } from './ui/edge-bleed';
 
@@ -88,14 +88,15 @@ export function Pipeline() {
       <div className="relative mx-auto max-w-7xl px-6 pt-32 md:pt-40 pb-32 md:pb-40">
         <div className="max-w-2xl mb-14">
           <Eyebrow className="mb-4 block">The pipeline</Eyebrow>
-          <TextEffect
+          <TextAnimate
             as="h2"
+            animation="scaleUp"
+            by="word"
+            duration={0.55}
             className="text-[length:var(--text-3xl)] leading-[1.04] tracking-[-0.025em]"
-            stagger={0.04}
-            triggerOnView
           >
             Four services, one pipeline.
-          </TextEffect>
+          </TextAnimate>
           <p className="mt-6 text-[length:var(--text-base)] leading-[1.6] text-[var(--color-fg-secondary)]">
             Every stage runs in isolation — the API takes uploads, the worker handles the heavy lifting,
             Postgres keeps state, Redis runs the queue. Scroll to walk through it.
