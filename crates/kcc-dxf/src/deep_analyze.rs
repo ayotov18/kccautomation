@@ -340,35 +340,132 @@ fn extract_dimensions(dxf: &DxfDrawing) -> Vec<Value> {
 
 fn extract_annotations(dxf: &DxfDrawing) -> Vec<Value> {
     let mut annotations = Vec::new();
+    let mut seen_block_text: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // 1. Top-level TEXT / MTEXT in modelspace + paperspace.
     for entity in dxf.entities() {
-        match &entity.specific {
-            DxfEntityType::Text(e) => {
+        push_text_annotation(&entity.specific, &entity.common.layer, &mut annotations);
+        // 1b. Dimension text content — every DIMENSION carries either a text
+        //     override or an actual_measurement. The runtime loses both when
+        //     it stores `drawing_dimensions` as just a number.
+        if let Some((text, layer)) = dimension_text(&entity.specific, &entity.common.layer) {
+            annotations.push(json!({
+                "type": "DIMENSION_TEXT",
+                "value": text, "layer": layer,
+            }));
+        }
+    }
+
+    // 2. TEXT / MTEXT inside block DEFINITIONS. Block names like
+    //    "MÓVEL - cama queen", "vrata_70_20", "WIN DIM TAG" carry the
+    //    semantic identity of the floor plan — emitting them as
+    //    annotations lets the AI see the room layout.
+    for block in dxf.blocks() {
+        if block.name.starts_with('*') { continue; }
+        // Always emit the block name itself as a synthetic annotation
+        // (block-instance counts on their own don't reach the AI prompt).
+        let key = format!("BLOCK_NAME::{}", block.name);
+        if seen_block_text.insert(key) {
+            annotations.push(json!({
+                "type": "BLOCK_NAME",
+                "value": &block.name,
+                "layer": "_block_definition",
+            }));
+        }
+        for be in &block.entities {
+            push_text_annotation(&be.specific, &be.common.layer, &mut annotations);
+            if let Some((text, layer)) = dimension_text(&be.specific, &be.common.layer) {
                 annotations.push(json!({
-                    "type": "TEXT", "value": &e.value,
-                    "location": [e.location.x, e.location.y], "height": e.text_height,
-                    "rotation": e.rotation, "style": &e.text_style_name, "layer": &entity.common.layer,
+                    "type": "DIMENSION_TEXT",
+                    "value": text, "layer": layer,
+                    "from_block": &block.name,
                 }));
             }
-            DxfEntityType::MText(e) => {
-                annotations.push(json!({
+        }
+    }
+
+    annotations
+}
+
+fn push_text_annotation(specific: &DxfEntityType, layer: &str, out: &mut Vec<Value>) {
+    match specific {
+        DxfEntityType::Text(e) => {
+            if !e.value.trim().is_empty() {
+                out.push(json!({
+                    "type": "TEXT", "value": &e.value,
+                    "location": [e.location.x, e.location.y], "height": e.text_height,
+                    "rotation": e.rotation, "style": &e.text_style_name, "layer": layer,
+                }));
+            }
+        }
+        DxfEntityType::MText(e) => {
+            if !e.text.trim().is_empty() {
+                out.push(json!({
                     "type": "MTEXT", "text": &e.text,
                     "insertion_point": [e.insertion_point.x, e.insertion_point.y],
                     "height": e.initial_text_height, "rotation": e.rotation_angle,
                     "width": e.reference_rectangle_width, "attachment": e.attachment_point as i32,
-                    "style": &e.text_style_name, "layer": &entity.common.layer,
+                    "style": &e.text_style_name, "layer": layer,
                 }));
             }
-            _ => {}
         }
+        _ => {}
     }
-    annotations
+}
+
+fn dimension_text(specific: &DxfEntityType, layer: &str) -> Option<(String, String)> {
+    let (text, measurement) = match specific {
+        DxfEntityType::RotatedDimension(e) => (&e.dimension_base.text, e.dimension_base.actual_measurement),
+        DxfEntityType::RadialDimension(e) => (&e.dimension_base.text, e.dimension_base.actual_measurement),
+        DxfEntityType::DiameterDimension(e) => (&e.dimension_base.text, e.dimension_base.actual_measurement),
+        DxfEntityType::AngularThreePointDimension(e) => (&e.dimension_base.text, e.dimension_base.actual_measurement),
+        DxfEntityType::OrdinateDimension(e) => (&e.dimension_base.text, e.dimension_base.actual_measurement),
+        _ => return None,
+    };
+    // Prefer the explicit text override (engineer's label, e.g. "21m²" or
+    // "STR_1"); fall back to the auto-measured value with two decimals.
+    let v = if !text.trim().is_empty() {
+        text.clone()
+    } else if measurement.is_finite() && measurement.abs() > 1e-9 {
+        format!("{:.2}", measurement)
+    } else {
+        return None;
+    };
+    Some((v, layer.to_string()))
 }
 
 fn build_statistics(dxf: &DxfDrawing, entity_type_counts: &HashMap<String, usize>) -> Value {
-    let mut layer_counts: HashMap<String, usize> = HashMap::new();
-    for e in dxf.entities() {
-        *layer_counts.entry(e.common.layer.clone()).or_default() += 1;
+    // Per-layer entity counts that recursively expand INSERTs into their
+    // block contents. Without this, drawings whose modelspace is mostly
+    // INSERTs (e.g. furniture/door/window blocks) report empty layer
+    // counts and the AI pipeline thinks the drawing is geometry-poor.
+    //
+    // We index blocks by name → its entity list (cloned) so the borrow
+    // checker is happy with the recursive walk.
+    let mut block_index: HashMap<String, Vec<(String, DxfEntityType)>> = HashMap::new();
+    for b in dxf.blocks() {
+        let entries: Vec<(String, DxfEntityType)> = b
+            .entities
+            .iter()
+            .map(|be| (be.common.layer.clone(), be.specific.clone()))
+            .collect();
+        block_index.insert(b.name.clone(), entries);
     }
+
+    let mut raw_layer_counts: HashMap<String, usize> = HashMap::new();
+    let mut effective_layer_counts: HashMap<String, usize> = HashMap::new();
+
+    for e in dxf.entities() {
+        *raw_layer_counts.entry(e.common.layer.clone()).or_default() += 1;
+        accumulate_effective_layers(
+            &e.specific,
+            &e.common.layer,
+            &block_index,
+            &mut effective_layer_counts,
+            0,
+        );
+    }
+
     json!({
         "total_entities": entity_type_counts.values().sum::<usize>(),
         "total_layers": dxf.layers().count(),
@@ -376,8 +473,42 @@ fn build_statistics(dxf: &DxfDrawing, entity_type_counts: &HashMap<String, usize
         "total_dimension_styles": dxf.dim_styles().count(),
         "total_linetypes": dxf.line_types().count(),
         "entity_type_counts": entity_type_counts,
-        "entities_per_layer": layer_counts,
+        // `entities_per_layer` is the **effective** map (post block-expansion)
+        // because that is what every downstream consumer (drawing_layers,
+        // drawing-type detection, AI prompt) actually wants.
+        "entities_per_layer": effective_layer_counts,
+        "entities_per_layer_raw": raw_layer_counts,
     })
+}
+
+/// Recursively walk a single entity, attributing each leaf entity to the
+/// layer it would be drawn on after block expansion (block-internal layer 0
+/// inherits the parent INSERT's layer; otherwise the block-internal layer
+/// wins). Stops at depth 10 to bound pathological recursion.
+fn accumulate_effective_layers(
+    specific: &DxfEntityType,
+    parent_layer: &str,
+    block_index: &HashMap<String, Vec<(String, DxfEntityType)>>,
+    out: &mut HashMap<String, usize>,
+    depth: usize,
+) {
+    if depth >= 10 {
+        return;
+    }
+    if let DxfEntityType::Insert(insert) = specific {
+        if let Some(entries) = block_index.get(&insert.name) {
+            for (be_layer, be_specific) in entries {
+                let eff_layer = if be_layer.is_empty() || be_layer == "0" {
+                    parent_layer.to_string()
+                } else {
+                    be_layer.clone()
+                };
+                accumulate_effective_layers(be_specific, &eff_layer, block_index, out, depth + 1);
+            }
+            return;
+        }
+    }
+    *out.entry(parent_layer.to_string()).or_default() += 1;
 }
 
 fn entity_type_name(entity: &DxfEntityType) -> String {

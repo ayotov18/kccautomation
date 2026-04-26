@@ -126,6 +126,26 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
         "Detected drawing type from text signals"
     );
 
+    // Fail-fast: refuse to ship a fabricated KSS for a drawing whose
+    // parser output is too sparse to support a real takeoff. The user is
+    // better served by an explicit "drawing data insufficient" error than
+    // by Opus filling in plausible numbers.
+    let populated_layer_count = layers.iter().filter(|(_, c)| *c > 0).count();
+    let total_signal = populated_layer_count
+        .saturating_add(blocks.len())
+        .saturating_add(annotations.len());
+    if populated_layer_count <= 2 && annotations.is_empty() && total_signal < 6 {
+        let msg = format!(
+            "Drawing data is too sparse to generate a meaningful KSS \
+             ({populated_layer_count} populated layers, {} blocks, {} annotations, \
+             {} dimensions). The DXF parse may have lost geometry, or the source DWG \
+             is dimensions-only — re-upload a working drawing with walls/doors/windows on named layers.",
+            blocks.len(), annotations.len(), dimensions.len(),
+        );
+        tracing::warn!(%session_id, %msg, "AI KSS aborting — geometry-poor drawing");
+        return Err(anyhow::anyhow!(msg));
+    }
+
     use kcc_core::drawing_type::DrawingType;
     let price_categories = match drawing_type {
         DrawingType::Steel => "This is a STEEL FABRICATION drawing. Search for these Bulgarian prices:\n\

@@ -369,6 +369,19 @@ async fn run_deep_analysis(
     upload_to_s3(&ctx.s3, &ctx.bucket, &s3_key, &json_bytes).await?;
     store_report_record(&ctx.db, drawing_id, "deep_analysis", &s3_key).await?;
 
+    // ── Purge stale rows so re-analysis is idempotent ──────
+    // Deep-analysis used to be append-only — re-running on the same
+    // drawing duplicated drawing_layers/blocks/dimensions/annotations
+    // and silently kept old rows around forever. Now we delete first,
+    // so triggering /drawings/{id}/deep-analyze always reflects the
+    // latest parser output.
+    for table in ["drawing_layers", "drawing_blocks", "drawing_dimensions", "drawing_annotations"] {
+        let _ = sqlx::query(&format!("DELETE FROM {table} WHERE drawing_id = $1"))
+            .bind(drawing_id)
+            .execute(&ctx.db)
+            .await;
+    }
+
     // ── Persist to normalized Postgres tables ──────────────
     // This is the PRIMARY data source for AI pipelines — not S3.
 
