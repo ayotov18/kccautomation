@@ -7,8 +7,25 @@ COPY migrations/ migrations/
 RUN cargo build --release --bin kcc-worker
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN useradd -r -s /bin/false kcc
+
+# ODA File Converter (DWG -> DXF). Qt6 runtime is bundled in the .deb,
+# but it still needs an X display, so we wrap with xvfb.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl xvfb \
+        libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
+        libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+        libxcb-sync1 libxcb-xfixes0 libxcb-xkb1 libxkbcommon-x11-0 \
+        libfontconfig1 libdbus-1-3 libegl1 libopengl0 \
+    && curl -fSL -o /tmp/oda.deb \
+        "https://www.opendesign.com/guestfiles/get?filename=ODAFileConverter_QT6_lnxX64_8.3dll_27.1.deb" \
+    && (dpkg -i /tmp/oda.deb || apt-get install -f -y --no-install-recommends) \
+    && rm /tmp/oda.deb \
+    && ODA_DIR=$(ls -d /usr/bin/ODAFileConverter_*/ | head -n1) \
+    && printf '#!/bin/sh\nexec xvfb-run -a -s "-screen 0 1024x768x24" %sODAFileConverter "$@"\n' "$ODA_DIR" > /usr/local/bin/ODAFileConverter \
+    && chmod +x /usr/local/bin/ODAFileConverter \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -r -s /bin/false -m kcc
 COPY --from=builder /app/target/release/kcc-worker /usr/local/bin/
 COPY --from=builder /app/migrations /app/migrations
 USER kcc
