@@ -1,0 +1,44 @@
+/* KCC design tokens — mirror of frontend Tailwind dark theme
+ * gray-900  #0a0a0f  page background
+ * gray-800  #1f2937  panel background
+ * gray-700  #374151  border
+ * gray-400  #9ca3af  muted text
+ * gray-100  #f3f4f6  primary text
+ * blue-600  #2563eb  primary action
+ * red-500   #ef4444  kcc classification
+ * yellow-500 #eab308 important
+ * green-500 #22c55e  standard
+ */
+:root {
+  --kcc-bg:           #0a0a0f;
+  --kcc-bg-panel:     #111827;
+  --kcc-bg-panel-alt: #1f2937;
+  --kcc-border:       #374151;
+  --kcc-text:         #f3f4f6;
+  --kcc-text-muted:   #9ca3af;
+  --kcc-text-dim:     #6b7280;
+  --kcc-accent:       #2563eb;
+  --kcc-accent-hover: #1d4ed8;
+  --kcc-kcc:          #ef4444;
+  --kcc-important:    #eab308;
+  --kcc-standard:     #22c55e;
+  --kcc-radius:       6px;
+  --kcc-radius-sm:    4px;
+  --kcc-font-mono:    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --kcc-font-sans:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--kcc-bg);
+  color: var(--kcc-text);
+  font-family: var(--kcc-font-sans);
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+  width: 100vw;
+}

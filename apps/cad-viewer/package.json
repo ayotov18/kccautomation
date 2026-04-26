@@ -1,0 +1,31 @@
+{
+  "name": "@kcc/cad-viewer-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Iframed CAD viewer (mlightcad) with KCC overlay. Communicates with the Next.js host via postMessage.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3002 --strictPort",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --port 3002"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@kcc/viewer-bridge-types": "file:../../packages/viewer-bridge-types",
+    "@mlightcad/cad-simple-viewer": "^1.4.13",
+    "@mlightcad/cad-viewer": "^1.4.13",
+    "@mlightcad/data-model": "^1.7.20",
+    "element-plus": "^2.12.0",
+    "three": "^0.172.0",
+    "vue": "^3.4.21",
+    "vue-i18n": "^10.0.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.3",
+    "sass": "^1.95.1",
+    "typescript": "^5.7.0",
+    "vite": "^5.4.19",
+    "vue-tsc": "^2.1.6"
+  }
+}

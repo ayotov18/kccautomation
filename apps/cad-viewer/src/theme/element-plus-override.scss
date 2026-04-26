@@ -1,0 +1,25 @@
+/* Element Plus dark theme override mapped to KCC tokens */
+:root {
+  --el-color-primary: var(--kcc-accent);
+  --el-color-primary-light-3: var(--kcc-accent-hover);
+  --el-bg-color: var(--kcc-bg);
+  --el-bg-color-page: var(--kcc-bg);
+  --el-bg-color-overlay: var(--kcc-bg-panel);
+  --el-text-color-primary: var(--kcc-text);
+  --el-text-color-regular: var(--kcc-text);
+  --el-text-color-secondary: var(--kcc-text-muted);
+  --el-text-color-placeholder: var(--kcc-text-dim);
+  --el-text-color-disabled: var(--kcc-text-dim);
+  --el-border-color: var(--kcc-border);
+  --el-border-color-light: var(--kcc-border);
+  --el-border-color-lighter: var(--kcc-border);
+  --el-fill-color: var(--kcc-bg-panel-alt);
+  --el-fill-color-blank: var(--kcc-bg-panel);
+  --el-border-radius-base: var(--kcc-radius);
+  --el-border-radius-small: var(--kcc-radius-sm);
+}
+
+/* Hide mlightcad's built-in upload UI if it ever renders through our shell */
+.upload-screen {
+  display: none !important;
+}

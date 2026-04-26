@@ -54,8 +54,6 @@ analysis/
 research/
 third_party/
 frontend-nextjs-backup/
-apps/cad-viewer/
-packages/
 
 # Large generated reports
 deep-analysis-*.json
