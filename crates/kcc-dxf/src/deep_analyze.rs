@@ -424,7 +424,15 @@ fn dimension_text(specific: &DxfEntityType, layer: &str) -> Option<(String, Stri
     };
     // Prefer the explicit text override (engineer's label, e.g. "21m²" or
     // "STR_1"); fall back to the auto-measured value with two decimals.
-    let v = if !text.trim().is_empty() {
+    // AutoCAD uses "<>" as a placeholder meaning "render the auto-measured
+    // value" — that's NOT an override, treat it like an empty string.
+    let trimmed = text.trim();
+    let is_placeholder = trimmed.is_empty()
+        || trimmed == "<>"
+        || trimmed == "< >"
+        || trimmed.eq_ignore_ascii_case("<x>")
+        || trimmed.starts_with("\\X");
+    let v = if !is_placeholder {
         text.clone()
     } else if measurement.is_finite() && measurement.abs() > 1e-9 {
         format!("{:.2}", measurement)
