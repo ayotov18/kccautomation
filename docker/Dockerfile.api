@@ -11,7 +11,7 @@ FROM debian:bookworm-slim
 # ODA File Converter (DWG -> DXF). Qt6 runtime is bundled in the .deb,
 # but it still needs an X display, so we wrap with xvfb.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl xvfb \
+        ca-certificates curl xvfb xauth \
         libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
         libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
         libxcb-sync1 libxcb-xfixes0 libxcb-xkb1 libxkbcommon-x11-0 \
