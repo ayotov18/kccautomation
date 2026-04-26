@@ -174,14 +174,32 @@ async fn main() -> anyhow::Result<()> {
                         Ok(job) => {
                             tracing::info!(job_id = %job.job_id, phase = %job.phase, "Processing AI KSS job");
                             if let Err(e) = ai_kss_pipeline::process_ai_kss_job(job.clone(), &ctx).await {
-                                tracing::error!(job_id = %job.job_id, error = %e, "AI KSS job failed");
+                                let err_msg = e.to_string();
+                                tracing::error!(job_id = %job.job_id, error = %err_msg, "AI KSS job failed");
                                 let _ = sqlx::query(
                                     "UPDATE jobs SET status = 'failed', error_message = $1 WHERE id = $2",
                                 )
-                                .bind(e.to_string())
+                                .bind(&err_msg)
                                 .bind(job.job_id)
                                 .execute(&ctx.db)
                                 .await;
+                                let _ = sqlx::query(
+                                    "UPDATE ai_kss_sessions SET status = 'failed', updated_at = now() WHERE drawing_id = $1",
+                                )
+                                .bind(job.drawing_id)
+                                .execute(&ctx.db)
+                                .await;
+                                let redis_url = std::env::var("REDIS_URL")
+                                    .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+                                if let Ok(client) = redis::Client::open(redis_url) {
+                                    if let Ok(mut conn) = client.get_multiplexed_async_connection().await {
+                                        for (field, value) in [("status", "failed"), ("error", err_msg.as_str())] {
+                                            let key = format!("kcc:ai:{}:{}", job.session_id, field);
+                                            let _: redis::RedisResult<()> = redis::cmd("SET").arg(&key).arg(value).query_async(&mut conn).await;
+                                            let _: redis::RedisResult<()> = redis::cmd("EXPIRE").arg(&key).arg(3600).query_async(&mut conn).await;
+                                        }
+                                    }
+                                }
                             }
                         }
                         Err(e) => tracing::error!(error = %e, "Failed to deserialize AI KSS job"),

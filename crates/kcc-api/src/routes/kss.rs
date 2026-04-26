@@ -533,12 +533,16 @@ async fn get_ai_kss_status(
     let model: Option<String> = redis::cmd("GET")
         .arg(format!("kcc:ai:{}:model", session_id))
         .query_async(&mut *conn).await.ok();
+    let error: Option<String> = redis::cmd("GET")
+        .arg(format!("kcc:ai:{}:error", session_id))
+        .query_async(&mut *conn).await.ok();
 
     Ok(Json(serde_json::json!({
         "session_id": session_id,
         "status": redis_status.unwrap_or(db_status),
         "progress": progress.and_then(|p| p.parse::<i32>().ok()).unwrap_or(0),
         "model": model,
+        "error": error,
     })))
 }
 

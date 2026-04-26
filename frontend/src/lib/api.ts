@@ -393,7 +393,7 @@ class ApiClient {
     return this.request(`/drawings/${drawingId}/generate-ai-kss`, { method: 'POST' });
   }
 
-  async getAiKssStatus(drawingId: string): Promise<{ session_id: string; status: string; progress: number; model: string | null }> {
+  async getAiKssStatus(drawingId: string): Promise<{ session_id: string; status: string; progress: number; model: string | null; error: string | null }> {
     return this.request(`/drawings/${drawingId}/ai-kss/status`);
   }
 

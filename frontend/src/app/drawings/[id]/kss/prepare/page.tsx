@@ -14,6 +14,7 @@ export default function AiKssPrepare() {
   const [progress, setProgress] = useState(0);
   const [items, setItems] = useState<AiResearchItem[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Poll status during research phase
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function AiKssPrepare() {
           router.push(`/drawings/${drawingId}/kss`);
         } else if (s.status === 'failed') {
           clearInterval(poll);
+          setErrorMsg(s.error ?? 'Pipeline failed without an error message.');
         }
       } catch { /* session not found yet */ }
     }, 2000);
@@ -76,6 +78,41 @@ export default function AiKssPrepare() {
   }, {} as Record<string, AiResearchItem[]>);
 
   const approvedCount = items.filter(i => i.approved).length;
+
+  if (status === 'failed') {
+    const isAuth = /401|user not found|unauthori[sz]ed|api key/i.test(errorMsg ?? '');
+    return (
+      <div className="oe-fade-in">
+        <div className="max-w-2xl mx-auto px-6 py-12">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-6">
+            <h2 className="text-xl font-bold text-red-300 mb-2">Price research failed</h2>
+            <p className="text-content-secondary text-sm mb-4">
+              {isAuth
+                ? 'The OpenRouter API key is rejected (401). Rotate OPENROUTER_API_KEY in the worker service and try again.'
+                : 'The KSS research pipeline could not finish. Details below — check the worker logs for the full trace.'}
+            </p>
+            <pre className="text-xs text-red-200 bg-black/30 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all">
+              {errorMsg}
+            </pre>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => router.push(`/drawings/${drawingId}`)}
+                className="px-3 py-1.5 text-sm rounded-lg bg-surface-tertiary hover:bg-gray-700"
+              >
+                Back to drawing
+              </button>
+              <button
+                onClick={() => location.reload()}
+                className="px-3 py-1.5 text-sm rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-200"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (status === 'loading' || status === 'researching') {
     return (
