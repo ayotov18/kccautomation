@@ -90,36 +90,45 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let _ann_summary: String = annotations.iter()
+    let ann_summary: String = annotations.iter()
         .filter(|(t,)| !t.is_empty() && t != "None")
-        .take(10)
+        .take(40)
         .map(|(t,)| format!("  \"{}\"", t))
         .collect::<Vec<_>>()
         .join("\n");
 
-    let _dim_summary: String = dimensions.iter()
-        .take(15)
+    let dim_summary: String = dimensions.iter()
+        .take(40)
         .map(|(v,)| format!("{:.2}", v))
         .collect::<Vec<_>>()
         .join(", ");
 
-    let _block_summary: String = blocks.iter()
-        .take(10)
+    let block_summary: String = blocks.iter()
+        .take(30)
         .map(|(name, count)| format!("  {} ({} entities)", name, count))
         .collect::<Vec<_>>()
         .join("\n");
 
-    // Detect drawing type from extracted features to ask for the right prices
-    let features: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT feature_type, COUNT(*) FROM features WHERE drawing_id = $1 GROUP BY feature_type"
-    ).bind(drawing_id).fetch_all(&ctx.db).await.unwrap_or_default();
+    // Detect drawing type from layer / block / annotation TEXT — not from
+    // feature counts. The geometric feature extractor produced 250 false
+    // "Steel Members" on a wooden cabin floor plan because every wall is
+    // a parallel-line pair; using its output to pick the price branch sent
+    // Perplexity hunting for IPE/HEB prices on a KVH/BSH timber drawing.
+    let layer_names: Vec<String> = layers.iter().map(|(n, _)| n.clone()).collect();
+    let block_names: Vec<String> = blocks.iter().map(|(n, _)| n.clone()).collect();
+    let ann_strings: Vec<String> = annotations.iter().map(|(t,)| t.clone()).collect();
+    let drawing_type = kcc_core::drawing_type::classify_from_text(
+        &layer_names, &block_names, &ann_strings,
+    );
+    tracing::info!(
+        %session_id, drawing_type = drawing_type.as_str(),
+        layer_n = layers.len(), block_n = blocks.len(), ann_n = annotations.len(),
+        "Detected drawing type from text signals"
+    );
 
-    let steel_count: i64 = features.iter().filter(|(t, _)| t == "Steel Member").map(|(_, c)| c).sum();
-    let hole_count: i64 = features.iter().filter(|(t, _)| t == "Hole").map(|(_, c)| c).sum();
-    let is_steel_drawing = steel_count > 5 || hole_count > 20;
-
-    let price_categories = if is_steel_drawing {
-        "This is a STEEL FABRICATION drawing. Search for these Bulgarian prices:\n\
+    use kcc_core::drawing_type::DrawingType;
+    let price_categories = match drawing_type {
+        DrawingType::Steel => "This is a STEEL FABRICATION drawing. Search for these Bulgarian prices:\n\
          1. Стоманени профили IPE/HEB/UPN — цена на кг доставка + монтаж\n\
          2. Заваръчни работи — цена на м.л.\n\
          3. Болтови съединения — цена на бр.\n\
@@ -129,9 +138,26 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
          7. Армировка стомана B500B — цена на кг\n\
          8. Стоманени плочи/ламарина — цена на кг\n\
          9. Монтаж на стоманена конструкция с кран — цена на тон\n\
-         10. Транспорт на стоманена конструкция"
-    } else {
-        "This is an ARCHITECTURAL drawing. Search for these Bulgarian prices:\n\
+         10. Транспорт на стоманена конструкция",
+        DrawingType::Timber => "This is a WOODEN / TIMBER FRAME construction drawing (KVH / BSH columns and beams, OSB / plywood sheathing, mineral-wool insulation, sheet-metal façade & roof). Search for these Bulgarian prices:\n\
+         1. КVH конструкционна дървесина (10×12, 10×16, 8×10, 10×20) — цена на м³ доставка + монтаж\n\
+         2. BSH ламелирана дървесина — цена на м³ доставка + монтаж\n\
+         3. OSB плочи 10/12/18 mm — цена на м² доставка + монтаж\n\
+         4. Шперплат 18 mm — цена на м² доставка + монтаж\n\
+         5. Минерална / каменна вата 10–12 cm — цена на м² доставка + монтаж\n\
+         6. Топлоизолация неопор (EPS) 10–12 cm — цена на м² доставка + монтаж\n\
+         7. Ламарина за фасада и покрив (поцинкована, прахово боядисана) — цена на м² доставка + монтаж\n\
+         8. PVC 5-камерна дограма — цена на м² доставка + монтаж\n\
+         9. Вътрешни врати — цена на бр. доставка + монтаж\n\
+         10. Лепило за фасадни панели — цена на м²\n\
+         11. Летвена скара (фасада) — цена на м²\n\
+         12. Дъски 25 mm обшивка — цена на м³\n\
+         13. Паропропусклива фолио (~125 г/м²) — цена на м²\n\
+         14. Конструктивни планки и крепежни елементи — цена на бр.\n\
+         15. Стълба и второ ниво — цена на бр./комплект\n\
+         16. Транспорт",
+        DrawingType::Architectural | DrawingType::Mechanical | DrawingType::Unknown =>
+            "This is an ARCHITECTURAL drawing. Search for these Bulgarian prices:\n\
          1. Тухлена зидария / газобетон — цена на М2\n\
          2. Вътрешна мазилка — цена на М2\n\
          3. Латексово боядисване — цена на М2\n\
@@ -141,7 +167,7 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
          7. Топлоизолация EPS/XPS — цена на М2\n\
          8. PVC/алуминиева дограма — цена на М2 или бр.\n\
          9. ВиК — мивки, тоалетни, вани — цена на бр.\n\
-         10. Транспорт"
+         10. Транспорт",
     };
 
     let currency_symbol = defaults.currency_symbol();
@@ -158,16 +184,25 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
     // Format as prompt anchors so Perplexity / Opus has concrete consumption
     // numbers instead of hallucinating (e.g. "1 м2 zidariya needs 25 tuhli
     // + 0.02 m3 разтвор", not a guess).
-    let relevant_groups: &[&str] = if is_steel_drawing {
-        &["СЕК03", "СЕК04", "СЕК14", "СЕК15", "СЕК16"]
-    } else {
-        &["СЕК01", "СЕК02", "СЕК03", "СЕК04", "СЕК05", "СЕК06", "СЕК07", "СЕК08", "СЕК09", "СЕК10"]
+    let relevant_groups: &[&str] = match drawing_type {
+        DrawingType::Steel => &["СЕК03", "СЕК04", "СЕК14", "СЕК15", "СЕК16"],
+        DrawingType::Timber => &["СЕК18", "СЕК03", "СЕК09", "СЕК10", "СЕК11", "СЕК12", "СЕК13"],
+        DrawingType::Architectural | DrawingType::Mechanical | DrawingType::Unknown =>
+            &["СЕК01", "СЕК02", "СЕК03", "СЕК04", "СЕК05", "СЕК06", "СЕК07", "СЕК08", "СЕК09", "СЕК10"],
     };
     let quantity_norms_block = load_quantity_norms_block(&ctx.db, user_id, relevant_groups).await;
     let research_prompt = format!(
         "{price_categories}\n\n\
          {currency_header}\n\
-         Drawing info: {filename}, {entity_n} entities, active layers: {layer_summary}\n\n\
+         ===== DRAWING EVIDENCE (use this to refine quantities and item selection) =====\n\
+         File: {filename}  ·  {entity_n} entities  ·  detected type: {dtype}\n\
+         Active layers (top 20):\n{layer_summary}\n\
+         Block instances (top 30 — block names usually identify wall/door/window/furniture/profile types):\n{block_summary}\n\
+         Annotations (first 40 — these are the literal text labels on the drawing):\n{ann_summary}\n\
+         Dimension values present (sample):\n{dim_summary}\n\n\
+         Use the layer/block/annotation text above to identify the actual building system before pricing — \
+         e.g. layers like 'A-CONSTR-Wood' or blocks containing 'KVH'/'OSB' mean a timber-frame cabin, \
+         not concrete or masonry.\n\n\
          ===== RULES FOR EVERY PRICE =====\n\
          1. Every price MUST be the FULL unit cost including BOTH material AND labor — \
          the single number a Bulgarian contractor would quote to a client on Образец 9.1.\n\
@@ -199,7 +234,20 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
          - Хидроизолация битумна мембрана 4мм: 9–18 €/М2 total\n\
          - EPS 10см фасадна топлоизолация с мрежа и лепило: 18–31 €/М2 total\n\
          - PVC 5-камерна дограма с монтаж: 112–194 €/М2 total\n\
-         - Стоманени профили IPE доставка + монтаж: 1.8–2.8 €/кг total\n\n\
+         - Стоманени профили IPE доставка + монтаж: 1.8–2.8 €/кг total\n\
+         - КVH конструкционна дървесина (10×12, 10×16, 8×10): 1500–1900 €/м³ total (material 600–800, labor 800–1100)\n\
+         - BSH ламелирана дървесина (10×20): 1700–2200 €/м³ total\n\
+         - OSB плочи 18 mm доставка + монтаж: 11–17 €/м² total\n\
+         - OSB плочи 10 mm доставка + монтаж: 8–13 €/м² total\n\
+         - Шперплат мебелен 18 mm доставка + монтаж: 30–46 €/м² total\n\
+         - Минерална/каменна вата 10–12 cm: 11–22 €/м² total\n\
+         - Топлоизолация неопор (EPS) 12 cm: 13–22 €/м² total\n\
+         - Лепило за фасадни панели: 22–34 €/м² total\n\
+         - Летвена скара 3×4 cm: 5–7 €/м² total\n\
+         - Дъски 2.5 cm обшивка: 250–320 €/м³ total\n\
+         - Паропропусклива фолио (~125 г/м²): 3–5 €/м² total\n\
+         - Ламарина за фасада/покрив (поцинкована, прахово боядисана): 70–95 €/м² total\n\
+         - Конструктивни планки/крепежни елементи: 10–14 €/бр.\n\n\
          ===== OUTPUT JSON — EXACT SHAPE =====\n\
          {{\n\
            \"categories\": [\n\
@@ -235,6 +283,10 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
         profit = defaults.profit_pct,
         transport = defaults.transport_slab_eur,
         quantity_norms_block = quantity_norms_block,
+        dtype = drawing_type.as_str(),
+        block_summary = block_summary,
+        ann_summary = ann_summary,
+        dim_summary = dim_summary,
     );
 
     set_redis_field(&mut conn, &session_id, "progress", "30").await?;
@@ -452,13 +504,17 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
     audit.phase1_upload.annotation_count = annotations.len();
     audit.phase1_upload.units_detected = "from_db".into();
 
-    // Phase 2: Analysis — drawing type detection
-    audit.phase2_analysis.drawing_type_classification = if is_steel_drawing { "steel" } else { "architectural" }.into();
+    // Phase 2: Analysis — drawing type detection (now from layer / block /
+    // annotation text via kcc_core::drawing_type, not from extracted features).
+    audit.phase2_analysis.drawing_type_classification = drawing_type.as_str().into();
     audit.phase2_analysis.drawing_type_reasoning = audit::DrawingTypeReasoning {
-        has_steel_features: steel_count > 5,
+        has_steel_features: matches!(drawing_type, DrawingType::Steel),
         ..Default::default()
     };
-    for (ft, count) in &features {
+    let feature_counts: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT feature_type, COUNT(*) FROM features WHERE drawing_id = $1 GROUP BY feature_type"
+    ).bind(drawing_id).fetch_all(&ctx.db).await.unwrap_or_default();
+    for (ft, count) in &feature_counts {
         audit.phase2_analysis.features_detected.push(audit::FeatureAuditEntry {
             feature_type: ft.clone(),
             count: *count as usize,

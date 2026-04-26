@@ -2,6 +2,7 @@
 pub mod ai;
 pub mod datum;
 pub mod dimension;
+pub mod drawing_type;
 pub mod drm;
 pub mod fabrication;
 pub mod feature;

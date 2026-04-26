@@ -96,10 +96,21 @@ pub fn extract_features(drawing: &Drawing, index: &SpatialIndex) -> FeatureSet {
         features.add(t.clone());
     }
 
-    // Detect structural steel features (members, plates, bolt groups)
-    let steel = steel_detector::detect_steel_features(drawing, index);
-    for s in &steel {
-        features.add(s.clone());
+    // Detect structural steel features (members, plates, bolt groups) only
+    // when the drawing isn't obviously architectural / timber. The detector
+    // triggers on any parallel-line pair 50–1500 units apart, which means
+    // every wall in a floor plan becomes a false "Steel Member".
+    let drawing_type = crate::drawing_type::classify_drawing(drawing);
+    if drawing_type.allows_steel_detector() {
+        let steel = steel_detector::detect_steel_features(drawing, index);
+        for s in &steel {
+            features.add(s.clone());
+        }
+    } else {
+        tracing::info!(
+            drawing_type = drawing_type.as_str(),
+            "Skipping steel detector — drawing classified as non-steel"
+        );
     }
 
     // Post-extraction: link dimensions and GD&T to ALL features by spatial proximity.
