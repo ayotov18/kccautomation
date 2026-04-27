@@ -122,6 +122,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(routes::kss::kss_routes())
         .merge(routes::analyze::analyze_routes())
         .merge(routes::prices::price_routes())
+        .merge(routes::price_corpus::price_corpus_routes())
         .merge(routes::quantities::quantity_routes())
         .merge(routes::corrections::correction_routes())
         .route_layer(axum_middleware::from_fn_with_state(

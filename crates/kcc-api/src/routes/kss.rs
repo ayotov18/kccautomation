@@ -29,6 +29,9 @@ pub fn kss_routes() -> Router<AppState> {
         .route("/reports/{drawing_id}/kss/suggestions/{item_id}/reject", post(reject_suggestion))
         .route("/reports/{drawing_id}/kss/items", post(add_kss_item))
         .route("/reports/{drawing_id}/kss/finalize", post(finalize_kss))
+        .route("/drawings/{drawing_id}/structures/{structure_id}", put(rename_structure))
+        .route("/drawings/{drawing_id}/structures/merge", post(merge_structures))
+        .route("/drawings/{drawing_id}/structures/{structure_id}/delete", post(delete_structure))
 }
 
 #[derive(Serialize)]
@@ -362,16 +365,17 @@ async fn get_kss_data(
         "SELECT id FROM kss_reports WHERE drawing_id = $1 ORDER BY generated_at DESC LIMIT 1"
     ).bind(drawing_id).fetch_optional(&state.db).await.ok().flatten();
 
-    // Annotate each item in report_data with its DB id so the frontend can reference
-    // specific rows on save. Match by (sek_code, description) which is sufficient
-    // unique for a single report's line items.
+    // Annotate each item in report_data with its DB id, structure_id, and
+    // structure_label so the frontend can render per-module tabs and reference
+    // specific rows on save. Match by (sek_code, description) within a report.
     if let Some((report_id,)) = report_id_row {
-        let id_rows: Vec<(Uuid, String, String)> = sqlx::query_as(
-            "SELECT id, sek_code, description FROM kss_line_items WHERE report_id = $1"
+        let id_rows: Vec<(Uuid, String, String, Option<Uuid>, Option<String>)> = sqlx::query_as(
+            "SELECT id, sek_code, description, structure_id, structure_label
+             FROM kss_line_items WHERE report_id = $1"
         ).bind(report_id).fetch_all(&state.db).await.unwrap_or_default();
-        let id_map: std::collections::HashMap<(String, String), Uuid> = id_rows
+        let id_map: std::collections::HashMap<(String, String), (Uuid, Option<Uuid>, Option<String>)> = id_rows
             .into_iter()
-            .map(|(id, sek, desc)| ((sek, desc), id))
+            .map(|(id, sek, desc, sid, slabel)| ((sek, desc), (id, sid, slabel)))
             .collect();
         if let Some(sections) = report_data.get_mut("sections").and_then(|v| v.as_array_mut()) {
             for sec in sections {
@@ -379,9 +383,15 @@ async fn get_kss_data(
                     for item in items {
                         let sek = item.get("sek_code").and_then(|s| s.as_str()).unwrap_or("").to_string();
                         let desc = item.get("description").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                        if let Some(id) = id_map.get(&(sek, desc)) {
+                        if let Some((id, sid, slabel)) = id_map.get(&(sek, desc)) {
                             if let Some(obj) = item.as_object_mut() {
                                 obj.insert("id".into(), serde_json::Value::String(id.to_string()));
+                                if let Some(sid) = sid {
+                                    obj.insert("structure_id".into(), serde_json::Value::String(sid.to_string()));
+                                }
+                                if let Some(label) = slabel {
+                                    obj.insert("structure_label".into(), serde_json::Value::String(label.clone()));
+                                }
                             }
                         }
                     }
@@ -389,6 +399,37 @@ async fn get_kss_data(
             }
         }
     }
+
+    // Detected structures (modules) for this drawing — bbox + per-module
+    // subtotal. The frontend renders a tab per entry. Empty list when the
+    // drawing is single-module.
+    let structures: Vec<serde_json::Value> = if let Some((report_id,)) = report_id_row {
+        let rows: Vec<(Uuid, i32, String, f64, f64, f64, f64)> = sqlx::query_as(
+            "SELECT id, structure_index, label, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+             FROM drawing_structures WHERE drawing_id = $1 ORDER BY structure_index ASC"
+        ).bind(drawing_id).fetch_all(&state.db).await.unwrap_or_default();
+        let mut out = Vec::with_capacity(rows.len());
+        for (sid, idx, label, x0, y0, x1, y1) in rows {
+            let subtotal: Option<f64> = sqlx::query_scalar(
+                "SELECT COALESCE(SUM(total_lv), 0)::float8 FROM kss_line_items
+                 WHERE report_id = $1 AND structure_id = $2",
+            ).bind(report_id).bind(sid).fetch_one(&state.db).await.ok();
+            let line_count: Option<i64> = sqlx::query_scalar(
+                "SELECT COUNT(*)::bigint FROM kss_line_items WHERE report_id = $1 AND structure_id = $2"
+            ).bind(report_id).bind(sid).fetch_one(&state.db).await.ok();
+            out.push(serde_json::json!({
+                "id": sid.to_string(),
+                "index": idx,
+                "label": label,
+                "bbox": [x0, y0, x1, y1],
+                "subtotal_lv": subtotal.unwrap_or(0.0),
+                "line_count": line_count.unwrap_or(0),
+            }));
+        }
+        out
+    } else {
+        Vec::new()
+    };
 
     let suggestions = if let Some((report_id,)) = report_id_row {
         // Include rows flagged by confidence < 0.7 OR by needs_review = true.
@@ -458,6 +499,7 @@ async fn get_kss_data(
         "generated_at": generated_at.to_rfc3339(),
         "corrections_count": corrections.0,
         "suggestions": suggestions,
+        "structures": structures,
         "status": report_status.unwrap_or_else(|| "final".to_string()),
     })))
 }
@@ -648,11 +690,25 @@ async fn update_ai_kss_item(
 }
 
 /// Trigger Phase 3: Opus generation from reviewed Redis data.
+#[derive(serde::Deserialize, Default)]
+struct GenerateBody {
+    /// "ai" (default) | "rag" | "hybrid". Drives the worker dispatch.
+    #[serde(default)]
+    mode: Option<String>,
+}
+
 async fn trigger_ai_kss_generation(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
     Path(drawing_id): Path<Uuid>,
+    body: Option<Json<GenerateBody>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
+    let mode = body
+        .and_then(|Json(b)| b.mode)
+        .map(|s| s.to_ascii_lowercase())
+        .filter(|s| matches!(s.as_str(), "ai" | "rag" | "hybrid"))
+        .unwrap_or_else(|| "ai".to_string());
+
     let session: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM ai_kss_sessions WHERE drawing_id = $1 LIMIT 1"
     ).bind(drawing_id).fetch_optional(&state.db).await
@@ -679,6 +735,7 @@ async fn trigger_ai_kss_generation(
         "user_id": user_id,
         "session_id": session_id,
         "phase": "generate",
+        "mode": mode,
     });
 
     let mut conn = state.redis.lock().await;
@@ -689,6 +746,7 @@ async fn trigger_ai_kss_generation(
     Ok(Json(serde_json::json!({
         "job_id": job_id,
         "session_id": session_id,
+        "mode": mode,
     })))
 }
 
@@ -1144,4 +1202,227 @@ async fn recompute_and_persist_ladder(
     .map_err(|e| ApiError::Internal(format!("DB error recomputing ladder: {e}")))?;
 
     Ok(())
+}
+
+#[derive(serde::Deserialize)]
+struct RenameStructureBody {
+    label: String,
+}
+
+/// Rename a detected module. The drawing's title text rarely matches the way
+/// engineers name modules in their KSS; let the user override "Module 1" with
+/// "ТАСОС" inline. Updates `drawing_structures.label` AND propagates to every
+/// `kss_line_items.structure_label` for that structure so the frontend tab
+/// strip and the Excel export both reflect the new name without re-running
+/// the AI pipeline.
+async fn rename_structure(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path((drawing_id, structure_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<RenameStructureBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let trimmed = body.label.trim();
+    if trimmed.is_empty() || trimmed.len() > 80 {
+        return Err(ApiError::BadRequest("Label must be 1-80 chars".into()));
+    }
+
+    let _: (Uuid,) = sqlx::query_as("SELECT id FROM drawings WHERE id = $1 AND user_id = $2")
+        .bind(drawing_id)
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("Drawing not found".into()))?;
+
+    let updated = sqlx::query(
+        "UPDATE drawing_structures SET label = $1
+         WHERE id = $2 AND drawing_id = $3",
+    )
+    .bind(trimmed)
+    .bind(structure_id)
+    .bind(drawing_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    if updated.rows_affected() == 0 {
+        return Err(ApiError::NotFound("Structure not found".into()));
+    }
+
+    sqlx::query(
+        "UPDATE kss_line_items SET structure_label = $1 WHERE structure_id = $2",
+    )
+    .bind(trimmed)
+    .bind(structure_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    Ok(Json(serde_json::json!({ "label": trimmed })))
+}
+
+#[derive(serde::Deserialize)]
+struct MergeStructuresBody {
+    /// Module ids to merge INTO `target_id`. Their dim/annotation/line-item
+    /// rows get reassigned and the rows themselves are deleted.
+    source_ids: Vec<Uuid>,
+    target_id: Uuid,
+}
+
+/// Merge N detected modules into a single one. Used when the auto-detector
+/// over-split (e.g. one large floor plan with an internal courtyard appears
+/// as two clusters that should really be one). The user keeps the target
+/// module's label and bbox is expanded to cover everything.
+async fn merge_structures(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(drawing_id): Path<Uuid>,
+    Json(body): Json<MergeStructuresBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    if body.source_ids.is_empty() {
+        return Err(ApiError::BadRequest("source_ids must be non-empty".into()));
+    }
+    if body.source_ids.contains(&body.target_id) {
+        return Err(ApiError::BadRequest(
+            "target_id must not be in source_ids".into(),
+        ));
+    }
+
+    let _: (Uuid,) = sqlx::query_as("SELECT id FROM drawings WHERE id = $1 AND user_id = $2")
+        .bind(drawing_id)
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("Drawing not found".into()))?;
+
+    // Expand target bbox to cover sources.
+    let target: Option<(f64, f64, f64, f64)> = sqlx::query_as(
+        "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+         FROM drawing_structures WHERE id = $1 AND drawing_id = $2",
+    )
+    .bind(body.target_id)
+    .bind(drawing_id)
+    .fetch_optional(&state.db)
+    .await?;
+    let (mut tx0, mut ty0, mut tx1, mut ty1) =
+        target.ok_or_else(|| ApiError::NotFound("Target structure not found".into()))?;
+
+    let sources: Vec<(f64, f64, f64, f64, String)> = sqlx::query_as(
+        "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, label
+         FROM drawing_structures
+         WHERE drawing_id = $1 AND id = ANY($2::uuid[])",
+    )
+    .bind(drawing_id)
+    .bind(&body.source_ids)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+    if sources.len() != body.source_ids.len() {
+        return Err(ApiError::BadRequest(
+            "One or more source_ids did not belong to this drawing".into(),
+        ));
+    }
+    for (sx0, sy0, sx1, sy1, _) in &sources {
+        tx0 = tx0.min(*sx0);
+        ty0 = ty0.min(*sy0);
+        tx1 = tx1.max(*sx1);
+        ty1 = ty1.max(*sy1);
+    }
+
+    // Reassign all rows referencing the sources to the target.
+    for tbl in ["drawing_layers", "drawing_blocks", "drawing_dimensions", "drawing_annotations"] {
+        let q = format!(
+            "UPDATE {tbl} SET structure_id = $1
+             WHERE structure_id = ANY($2::uuid[])"
+        );
+        sqlx::query(&q)
+            .bind(body.target_id)
+            .bind(&body.source_ids)
+            .execute(&state.db)
+            .await
+            .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+    }
+    sqlx::query(
+        "UPDATE kss_line_items SET structure_id = $1, structure_label = (
+             SELECT label FROM drawing_structures WHERE id = $1
+         )
+         WHERE structure_id = ANY($2::uuid[])",
+    )
+    .bind(body.target_id)
+    .bind(&body.source_ids)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    // Update target bbox.
+    sqlx::query(
+        "UPDATE drawing_structures
+         SET bbox_min_x = $1, bbox_min_y = $2, bbox_max_x = $3, bbox_max_y = $4
+         WHERE id = $5",
+    )
+    .bind(tx0)
+    .bind(ty0)
+    .bind(tx1)
+    .bind(ty1)
+    .bind(body.target_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    // Delete source structures.
+    sqlx::query(
+        "DELETE FROM drawing_structures
+         WHERE drawing_id = $1 AND id = ANY($2::uuid[])",
+    )
+    .bind(drawing_id)
+    .bind(&body.source_ids)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    Ok(Json(serde_json::json!({
+        "merged_into": body.target_id,
+        "removed": body.source_ids,
+        "new_bbox": [tx0, ty0, tx1, ty1],
+    })))
+}
+
+/// Delete a detected module entirely. Reassigns its line items to no
+/// structure (NULL) so they appear under the recap-only view, and deletes
+/// the structure row. Used to discard a false-positive cluster.
+async fn delete_structure(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path((drawing_id, structure_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let _: (Uuid,) = sqlx::query_as("SELECT id FROM drawings WHERE id = $1 AND user_id = $2")
+        .bind(drawing_id)
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("Drawing not found".into()))?;
+
+    // ON DELETE SET NULL handles the layer/dim/annotation FKs; for KSS line
+    // items we explicitly null both fields so the recap stays meaningful.
+    sqlx::query(
+        "UPDATE kss_line_items SET structure_id = NULL, structure_label = NULL
+         WHERE structure_id = $1",
+    )
+    .bind(structure_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    let result = sqlx::query(
+        "DELETE FROM drawing_structures WHERE id = $1 AND drawing_id = $2",
+    )
+    .bind(structure_id)
+    .bind(drawing_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    if result.rows_affected() == 0 {
+        return Err(ApiError::NotFound("Structure not found".into()));
+    }
+    Ok(Json(serde_json::json!({ "deleted": true })))
 }

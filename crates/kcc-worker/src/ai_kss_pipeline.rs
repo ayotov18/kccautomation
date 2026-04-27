@@ -630,16 +630,33 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
 
     tracing::info!(%session_id, approved_items = reviewed_items.len(), "Read reviewed items from Redis");
 
-    // Load drawing analysis from Postgres
-    let layers: Vec<(String, i32)> = sqlx::query_as(
+    // Load detected structures (modules). Multi-module sheets get one Opus
+    // call per structure; single-module drawings (or pre-structure-detection
+    // legacy drawings) collapse to one virtual "whole drawing" structure.
+    let structures: Vec<(Uuid, String)> = sqlx::query_as(
+        "SELECT id, label FROM drawing_structures WHERE drawing_id = $1 ORDER BY structure_index ASC"
+    ).bind(drawing_id).fetch_all(&ctx.db).await?;
+
+    let target_structures: Vec<(Option<Uuid>, String)> = if structures.is_empty() {
+        vec![(None, "Whole drawing".to_string())]
+    } else {
+        structures.iter().map(|(id, label)| (Some(*id), label.clone())).collect()
+    };
+    tracing::info!(
+        %session_id, n_structures = target_structures.len(),
+        labels = ?target_structures.iter().map(|(_, l)| l.clone()).collect::<Vec<_>>(),
+        "Generating KSS per structure",
+    );
+
+    // Reused: drawing-wide layers/dims/annotations as a fallback for
+    // single-module drawings or legacy data.
+    let all_layers: Vec<(String, i32)> = sqlx::query_as(
         "SELECT name, entity_count FROM drawing_layers WHERE drawing_id = $1 ORDER BY entity_count DESC"
     ).bind(drawing_id).fetch_all(&ctx.db).await?;
-
-    let dimensions: Vec<(f64,)> = sqlx::query_as(
+    let all_dimensions: Vec<(f64,)> = sqlx::query_as(
         "SELECT value FROM drawing_dimensions WHERE drawing_id = $1"
     ).bind(drawing_id).fetch_all(&ctx.db).await?;
-
-    let annotations: Vec<(String,)> = sqlx::query_as(
+    let all_annotations: Vec<(String,)> = sqlx::query_as(
         "SELECT text FROM drawing_annotations WHERE drawing_id = $1"
     ).bind(drawing_id).fetch_all(&ctx.db).await?;
 
@@ -661,68 +678,32 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         .collect::<Vec<_>>()
         .join("\n");
 
-    let layer_info: String = layers.iter()
-        .filter(|(_, c)| *c > 0)
-        .take(15)
-        .map(|(n, c)| format!("{}: {} entities", n, c))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let dim_info: String = dimensions.iter()
-        .take(15)
-        .map(|(v,)| format!("{:.2}", v))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let ann_info: String = annotations.iter()
-        .filter(|(t,)| !t.is_empty() && t != "None")
-        .take(10)
-        .map(|(t,)| t.clone())
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let opus_prompt = format!(
-        "Generate a complete Bulgarian КСС (Количествено-Стойностна Сметка) in Образец 9.1 format.\n\n\
-         Drawing layers: {layer_info}\n\
-         Dimensions: {dim_info}\n\
-         Annotations: {ann_info}\n\n\
-         USER-REVIEWED PRICE DATA (use these as authoritative):\n{price_data}\n\n\
-         Generate all applicable KSS sections (I-XXIII) with quantities estimated from the drawing geometry and prices from the reviewed data.\n\n\
-         ===== GEOMETRY CONFIDENCE — STRICT HALLUCINATION CONTROLS =====\n\
-         Every quantity row carries `geometry_confidence` (0.0–1.0) and `extraction_method` derived from the deterministic extractor. You MUST respect them:\n\
-         - geometry_confidence >= 0.80  (polyline_shoelace | block_instance_count | linear_polyline | text_annotation):\n\
-             Numbers came from measured polylines or counted blocks. TRUST the quantity AS-IS. \
-             Your only job is pricing. Set item.confidence = geometry_confidence.\n\
-         - geometry_confidence 0.60-0.80 (wall_area_from_centerline | derived_from_primary):\n\
-             Length/count is real, height or ratio is an assumption. Keep quantity AS-IS; \
-             set item.confidence = 0.65 and note the assumption in `reasoning` \
-             (e.g. \"wall area assumes 2.8 m height\").\n\
-         - geometry_confidence < 0.60  (wall_volume_from_centerline | assumed_default | ai_inferred):\n\
-             Do NOT fabricate a \"better\" number. Preserve the original quantity, set \
-             needs_review = true, set item.confidence = geometry_confidence, and write \
-             a short suggestion in `reasoning` (e.g. \"Foundation depth missing — suggest \
-             verifying manually\"). Do NOT guess concrete volumes from floor area. Do NOT \
-             hallucinate rebar or formwork totals.\n\
-         - extraction_method == \"assumed_default\": same rules as confidence < 0.60 — treat \
-             as a flag, not a fact.\n\
-         If an item has no geometric source at all, do NOT emit a fresh row. Fifteen \
-         trustworthy items are better than thirty plausible-looking ones.\n\n\
-         ===== REQUIRED PER-ITEM TRACEABILITY FIELDS =====\n\
-         For EVERY item you emit, include:\n\
-           \"source_layer\": <one of the drawing layers you used — must appear in the layers list above, or the literal string \"none\" if purely inferred>\n\
-           \"source_annotation\": <optional, e.g. \"21m2\" if derived from a text annotation>\n\
-           \"extraction_basis\": one of \"layer_geometry\" | \"annotation\" | \"assumed_typical\"\n\
-         If source_layer == \"none\" AND extraction_basis == \"assumed_typical\", confidence MUST be ≤ 0.5.\n\n\
-         CONFIDENCE SCORING FALLBACK (when the extractor did NOT provide a confidence):\n\
-         - 0.9: Quantity from drawing geometry/dimensions/blocks directly\n\
-         - 0.7: Estimated from related drawing data with inference\n\
-         - 0.5: Assumed from building type with SOME indirect evidence\n\
-         - 0.3: Assumed from building type with NO evidence in drawing\n\
-         Items with confidence < 0.7 are 'suggestions' needing user approval.\n\n\
-         Output JSON matching: {{ \"kss_sections\": [...], \"total_items\": N, \"total_lv\": N, \"drawing_type\": \"...\", \"language_detected\": \"...\", \"warnings\": [...] }}"
-    );
-
     set_redis_field(&mut conn, &session_id, "progress", "40").await?;
+
+    // Generation mode: ai (default) | rag | hybrid. Drives the per-structure
+    // dispatch below. We default to "ai" to preserve legacy behaviour for
+    // jobs queued before this field was added.
+    let mode = job
+        .mode
+        .as_deref()
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_else(|| "ai".to_string());
+    let mode = match mode.as_str() {
+        "rag" | "hybrid" | "ai" => mode,
+        _ => "ai".to_string(),
+    };
+    tracing::info!(%session_id, %mode, "Generation mode selected");
+
+    // Re-detect drawing type from text signals — drives the canonical RAG
+    // category list per structure. Same logic as research phase.
+    let layer_names: Vec<String> = all_layers.iter().map(|(n, _)| n.clone()).collect();
+    let block_names: Vec<String> = Vec::new(); // not loaded in generation
+    let ann_strings: Vec<String> = all_annotations.iter().map(|(t,)| t.clone()).collect();
+    let drawing_type = kcc_core::drawing_type::classify_from_text(
+        &layer_names,
+        &block_names,
+        &ann_strings,
+    );
 
     // Call Opus via OpenRouter — use longer timeout for full KSS generation
     let ai_config = kcc_core::ai::AiConfig::from_env();
@@ -730,18 +711,247 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     opus_config.model = OPUS_MODEL.to_string();
     opus_config.timeout_secs = 180; // 3 minutes — Opus needs time for large structured output
     let client = kcc_core::ai::OpenRouterClient::new(&opus_config)?;
-
     let system_prompt = kcc_core::ai::prompt::SYSTEM_PROMPT;
-    let ai_response = client.generate_kss(system_prompt, &opus_prompt).await?;
+
+    // Per-structure generation. We collect each structure's items into a flat
+    // tagged list and merge the warnings. The aggregate report is then built
+    // and persisted as a single kss_report whose line items each carry the
+    // structure_id they came from.
+    type TaggedItem = (Option<Uuid>, String, kcc_core::kss::types::KssLineItem);
+    let mut all_tagged_items: Vec<TaggedItem> = Vec::new();
+    let mut all_warnings: Vec<String> = Vec::new();
+    let mut detected_drawing_type = String::new();
+    let mut detected_language = String::new();
+    let n_structs = target_structures.len();
+
+    for (struct_idx, (sid_opt, label)) in target_structures.iter().enumerate() {
+        // Per-structure data filtering. When sid_opt is None, fall back to the
+        // drawing-wide aggregates.
+        let (layer_info, dim_info, ann_info) = if let Some(sid) = sid_opt {
+            // Layers themselves are drawing-wide, but dim/annotation rows ARE
+            // tagged. We emit drawing-wide layers (the AI uses them as a
+            // selection menu) and per-structure dimensions + annotations.
+            let dims: Vec<(f64,)> = sqlx::query_as(
+                "SELECT value FROM drawing_dimensions WHERE drawing_id = $1 AND structure_id = $2"
+            ).bind(drawing_id).bind(*sid).fetch_all(&ctx.db).await?;
+            let anns: Vec<(String,)> = sqlx::query_as(
+                "SELECT text FROM drawing_annotations WHERE drawing_id = $1 AND structure_id = $2"
+            ).bind(drawing_id).bind(*sid).fetch_all(&ctx.db).await?;
+            let layer_info = all_layers.iter()
+                .filter(|(_, c)| *c > 0).take(15)
+                .map(|(n, c)| format!("{}: {} entities", n, c))
+                .collect::<Vec<_>>().join(", ");
+            let dim_info = dims.iter().take(15)
+                .map(|(v,)| format!("{:.2}", v))
+                .collect::<Vec<_>>().join(", ");
+            let ann_info = anns.iter()
+                .filter(|(t,)| !t.is_empty() && t != "None").take(10)
+                .map(|(t,)| t.clone())
+                .collect::<Vec<_>>().join(", ");
+            (layer_info, dim_info, ann_info)
+        } else {
+            let layer_info = all_layers.iter()
+                .filter(|(_, c)| *c > 0).take(15)
+                .map(|(n, c)| format!("{}: {} entities", n, c))
+                .collect::<Vec<_>>().join(", ");
+            let dim_info = all_dimensions.iter().take(15)
+                .map(|(v,)| format!("{:.2}", v))
+                .collect::<Vec<_>>().join(", ");
+            let ann_info = all_annotations.iter()
+                .filter(|(t,)| !t.is_empty() && t != "None").take(10)
+                .map(|(t,)| t.clone())
+                .collect::<Vec<_>>().join(", ");
+            (layer_info, dim_info, ann_info)
+        };
+
+        // Per-structure header tells Opus exactly which module it's pricing.
+        let module_header = if n_structs > 1 {
+            format!(
+                "===== MODULE {idx} of {total}: {label} =====\n\
+                 This drawing contains {total} independent floor-plan modules laid out side-by-side. \
+                 You are now generating the КСС for module \"{label}\". \
+                 Use ONLY the dimensions and annotations listed below — they belong to this module. \
+                 Do NOT invent quantities for other modules: each module gets its own KSS pass.\n\n",
+                idx = struct_idx + 1, total = n_structs, label = label,
+            )
+        } else {
+            String::new()
+        };
+
+        let opus_prompt = format!(
+            "{module_header}Generate a complete Bulgarian КСС (Количествено-Стойностна Сметка) in Образец 9.1 format.\n\n\
+             Drawing layers: {layer_info}\n\
+             Dimensions: {dim_info}\n\
+             Annotations: {ann_info}\n\n\
+             USER-REVIEWED PRICE DATA (use these as authoritative):\n{price_data}\n\n\
+             Generate all applicable KSS sections (I-XXIII) with quantities estimated from the drawing geometry and prices from the reviewed data.\n\n\
+             ===== GEOMETRY CONFIDENCE — STRICT HALLUCINATION CONTROLS =====\n\
+             Every quantity row carries `geometry_confidence` (0.0–1.0) and `extraction_method` derived from the deterministic extractor. You MUST respect them:\n\
+             - geometry_confidence >= 0.80  (polyline_shoelace | block_instance_count | linear_polyline | text_annotation):\n\
+                 Numbers came from measured polylines or counted blocks. TRUST the quantity AS-IS. \
+                 Your only job is pricing. Set item.confidence = geometry_confidence.\n\
+             - geometry_confidence 0.60-0.80 (wall_area_from_centerline | derived_from_primary):\n\
+                 Length/count is real, height or ratio is an assumption. Keep quantity AS-IS; \
+                 set item.confidence = 0.65 and note the assumption in `reasoning` \
+                 (e.g. \"wall area assumes 2.8 m height\").\n\
+             - geometry_confidence < 0.60  (wall_volume_from_centerline | assumed_default | ai_inferred):\n\
+                 Do NOT fabricate a \"better\" number. Preserve the original quantity, set \
+                 needs_review = true, set item.confidence = geometry_confidence, and write \
+                 a short suggestion in `reasoning`. Do NOT guess concrete volumes from floor area. Do NOT \
+                 hallucinate rebar or formwork totals.\n\
+             - extraction_method == \"assumed_default\": same rules as confidence < 0.60 — treat \
+                 as a flag, not a fact.\n\
+             If an item has no geometric source at all, do NOT emit a fresh row. Fifteen \
+             trustworthy items are better than thirty plausible-looking ones.\n\n\
+             ===== REQUIRED PER-ITEM TRACEABILITY FIELDS =====\n\
+             For EVERY item you emit, include:\n\
+               \"source_layer\": <one of the drawing layers you used — must appear in the layers list above, or the literal string \"none\" if purely inferred>\n\
+               \"source_annotation\": <optional, e.g. \"21m2\" if derived from a text annotation>\n\
+               \"extraction_basis\": one of \"layer_geometry\" | \"annotation\" | \"assumed_typical\"\n\
+             If source_layer == \"none\" AND extraction_basis == \"assumed_typical\", confidence MUST be ≤ 0.5.\n\n\
+             CONFIDENCE SCORING FALLBACK (when the extractor did NOT provide a confidence):\n\
+             - 0.9: Quantity from drawing geometry/dimensions/blocks directly\n\
+             - 0.7: Estimated from related drawing data with inference\n\
+             - 0.5: Assumed from building type with SOME indirect evidence\n\
+             - 0.3: Assumed from building type with NO evidence in drawing\n\
+             Items with confidence < 0.7 are 'suggestions' needing user approval.\n\n\
+             Output JSON matching: {{ \"kss_sections\": [...], \"total_items\": N, \"total_lv\": N, \"drawing_type\": \"...\", \"language_detected\": \"...\", \"warnings\": [...] }}"
+        );
+
+        let progress = 40 + (struct_idx as i32 * 40 / n_structs.max(1) as i32);
+        set_redis_field(&mut conn, &session_id, "progress", &progress.to_string()).await?;
+
+        // RAG / hybrid path: pull line items from the user's price corpus
+        // before (or instead of) calling Opus. RAG-only never calls Opus;
+        // hybrid uses corpus matches first and lets Opus fill the gaps.
+        let mut rag_items: Vec<kcc_core::kss::types::KssLineItem> = Vec::new();
+        let mut covered_descriptions: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        if mode == "rag" || mode == "hybrid" {
+            rag_items = generate_rag_items_for_structure(&ctx.db, user_id, drawing_type)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::warn!(%session_id, error = %e, "RAG search failed, falling back to AI");
+                    Vec::new()
+                });
+            for it in &rag_items {
+                covered_descriptions.insert(canonical_desc_key(&it.description));
+            }
+            tracing::info!(
+                %session_id, structure = %label, mode = %mode,
+                rag_matched = rag_items.len(),
+                "RAG corpus retrieval complete",
+            );
+        }
+
+        // RAG-only mode skips Opus entirely. We still need a synthetic
+        // ai_response so the audit trail records the structure.
+        let ai_response = if mode == "rag" {
+            kcc_core::ai::AiKssResponse {
+                kss_sections: Vec::new(),
+                overhead: kcc_core::ai::AiKssOverhead::default(),
+                total_items: rag_items.len(),
+                construction_subtotal_lv: rag_items.iter().map(|i| i.total_price).sum(),
+                total_lv: rag_items.iter().map(|i| i.total_price).sum(),
+                drawing_type: drawing_type.as_str().to_string(),
+                language_detected: "bg".to_string(),
+                warnings: if rag_items.is_empty() {
+                    vec!["RAG mode produced no items — your price library does not yet contain matches for this drawing's typical work. Re-run in 'AI' or 'Both' mode, or upload a more representative offer first.".into()]
+                } else {
+                    Vec::new()
+                },
+            }
+        } else {
+            tracing::info!(
+                %session_id, structure = %label, idx = struct_idx + 1, total = n_structs, %mode,
+                "Calling Opus for structure",
+            );
+            client.generate_kss(system_prompt, &opus_prompt).await?
+        };
+
+        tracing::info!(
+            %session_id, structure = %label, %mode,
+            ai_items = ai_response.total_items,
+            total_lv = format!("{:.2}", ai_response.total_lv),
+            warnings = ai_response.warnings.len(),
+            "KSS generation complete for structure",
+        );
+
+        if detected_drawing_type.is_empty() {
+            detected_drawing_type = ai_response.drawing_type.clone();
+        }
+        if detected_language.is_empty() {
+            detected_language = ai_response.language_detected.clone();
+        }
+        for w in &ai_response.warnings {
+            all_warnings.push(if n_structs > 1 {
+                format!("[{}] {}", label, w)
+            } else {
+                w.clone()
+            });
+        }
+
+        let per_struct_kss = kcc_core::ai::response::ai_response_to_kss_report(
+            &ai_response,
+            &format!("AI KSS - drawing {} - {}", drawing_id, label),
+            &chrono::Utc::now().format("%Y-%m-%d %H:%M UTC").to_string(),
+        );
+
+        // Hybrid: keep RAG items as the authoritative price source when their
+        // description matches an AI-emitted item; otherwise add the AI item.
+        // RAG-only: discard whatever per_struct_kss produced (it was a
+        // synthetic empty AiResponse anyway) and use rag_items directly.
+        let mut struct_items: Vec<kcc_core::kss::types::KssLineItem> = match mode.as_str() {
+            "rag" => rag_items.clone(),
+            "hybrid" => {
+                let mut combined = rag_items.clone();
+                for ai_item in per_struct_kss.items {
+                    let key = canonical_desc_key(&ai_item.description);
+                    if !covered_descriptions.contains(&key) {
+                        let mut it = ai_item.clone();
+                        it.provenance = "rag+ai_fallback".to_string();
+                        combined.push(it);
+                    }
+                }
+                combined
+            }
+            _ => per_struct_kss.items, // mode == "ai"
+        };
+
+        // Renumber within structure
+        for (i, it) in struct_items.iter_mut().enumerate() {
+            it.item_no = i + 1;
+        }
+        for item in struct_items {
+            all_tagged_items.push((*sid_opt, label.clone(), item));
+        }
+    }
 
     set_redis_field(&mut conn, &session_id, "progress", "80").await?;
 
+    // Synthesize an aggregate AiResponse from all per-structure items so the
+    // existing report-building / validation / persistence path keeps working.
+    let aggregate_items: Vec<kcc_core::kss::types::KssLineItem> = all_tagged_items
+        .iter().map(|(_, _, it)| it.clone()).collect();
+    let total_lv: f64 = aggregate_items.iter().map(|i| i.total_price).sum();
+    let ai_response = kcc_core::ai::AiKssResponse {
+        kss_sections: Vec::new(), // not used downstream; we use ai_kss directly
+        overhead: kcc_core::ai::AiKssOverhead::default(),
+        total_items: aggregate_items.len(),
+        construction_subtotal_lv: total_lv,
+        total_lv,
+        drawing_type: detected_drawing_type,
+        language_detected: detected_language,
+        warnings: all_warnings.clone(),
+    };
+
     tracing::info!(
         %session_id,
+        n_structures = n_structs,
         ai_items = ai_response.total_items,
         total_lv = format!("{:.2}", ai_response.total_lv),
         warnings = ai_response.warnings.len(),
-        "Opus KSS generation complete"
+        "All structures complete — aggregating",
     );
 
     // Write warnings to Redis LIST
@@ -759,11 +969,14 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     // ── FINALIZE: Write to Postgres (permanent storage) ────
     // Convert AI response to KSS report and store as normalized rows
 
-    let ai_kss = kcc_core::ai::response::ai_response_to_kss_report(
-        &ai_response,
-        &format!("AI KSS - drawing {}", drawing_id),
-        &chrono::Utc::now().format("%Y-%m-%d %H:%M UTC").to_string(),
-    );
+    let ai_kss_items = aggregate_items.clone();
+    let ai_kss_totals = kcc_core::kss::types::KssReport::compute_totals(&ai_kss_items);
+    let ai_kss = kcc_core::kss::types::KssReport {
+        drawing_name: format!("AI KSS - drawing {}", drawing_id),
+        generated_at: chrono::Utc::now().format("%Y-%m-%d %H:%M UTC").to_string(),
+        items: ai_kss_items,
+        totals: ai_kss_totals,
+    };
 
     // Create kss_reports record (mode = 'ai_full').
     // Phase 4: apply the user's configured VAT rate instead of hardcoded 20 %,
@@ -863,15 +1076,13 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     }
 
     // Write each KSS item as a normalized row in kss_line_items.
-    // Phase 4: populate obrazec_ref (Образец 9.1 cross-reference),
-    // renovation flag, EWC waste code (for renovation only), and the
-    // per-line audit trail JSONB.
+    // Each row is tagged with its structure_id/structure_label so the frontend
+    // can render one tab per module and the recap rolls up by structure.
     for (idx, item) in ai_kss.items.iter().enumerate() {
         let qi_flags = ai_items_as_quantity.get(idx); // carries needs_review + confidence
         let unit_price = if item.quantity > 0.0 { item.total_price / item.quantity } else { 0.0 };
         let obrazec_ref = kcc_core::kss::obrazec91_catalog::lookup_obrazec_ref(&item.sek_code);
         let item_is_renovation = kcc_core::kss::obrazec91_catalog::is_renovation_code(&item.sek_code);
-        // Extract SEK group prefix for EWC lookup.
         let sek_group = if let Some(dot) = item.sek_code.find('.') {
             &item.sek_code[..dot]
         } else {
@@ -882,6 +1093,10 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         } else {
             None
         };
+        let (struct_id, struct_label): (Option<Uuid>, Option<String>) = all_tagged_items
+            .get(idx)
+            .map(|(sid, label, _)| (*sid, Some(label.clone())))
+            .unwrap_or((None, None));
         let audit = serde_json::json!({
             "provenance": item.provenance,
             "confidence": item.confidence,
@@ -895,11 +1110,13 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
             },
             "sek_code": item.sek_code,
             "obrazec_ref": obrazec_ref,
+            "structure_id": struct_id.map(|u| u.to_string()),
+            "structure_label": struct_label,
             "generated_at": chrono::Utc::now().to_rfc3339(),
         });
         sqlx::query(
-            "INSERT INTO kss_line_items (report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_lv, total_lv, labor_price, material_price, mechanization_price, overhead_price, confidence, reasoning, provenance, obrazec_ref, is_renovation, ewc_waste_code, audit_trail, source_entity_id, source_layer, centroid_x, centroid_y, extraction_method, geometry_confidence, needs_review)
-             VALUES ($1, '', '', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)"
+            "INSERT INTO kss_line_items (report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_lv, total_lv, labor_price, material_price, mechanization_price, overhead_price, confidence, reasoning, provenance, obrazec_ref, is_renovation, ewc_waste_code, audit_trail, source_entity_id, source_layer, centroid_x, centroid_y, extraction_method, geometry_confidence, needs_review, structure_id, structure_label)
+             VALUES ($1, '', '', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)"
         )
         .bind(report_id)
         .bind(item.item_no as i32)
@@ -933,6 +1150,8 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         // needs_review = true whenever confidence < 0.70 OR the schema audit
         // flagged the row.
         .bind(qi_flags.map(|q| q.needs_review).unwrap_or(item.confidence < 0.70))
+        .bind(struct_id)
+        .bind(struct_label)
         .execute(&ctx.db)
         .await?;
     }
@@ -988,23 +1207,79 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         audit.phase1_upload.original_filename = format!("drawing-{}", drawing_id);
     }
 
-    // `layers` came from drawing_layers. Each row already carries its
-    // entity_count — so layer_count_total == layers.len() and
+    // `all_layers` came from drawing_layers. Each row already carries its
+    // entity_count — so layer_count_total == all_layers.len() and
     // layer_count_populated = count where entity_count > 0.
-    let populated: Vec<kcc_core::kss::audit::PopulatedLayerAudit> = layers
+    let populated: Vec<kcc_core::kss::audit::PopulatedLayerAudit> = all_layers
         .iter()
         .filter(|(_, c)| *c > 0)
-        .map(|(name, c)| kcc_core::kss::audit::PopulatedLayerAudit {
+        .map(|(name, c): &(String, i32)| kcc_core::kss::audit::PopulatedLayerAudit {
             name: name.clone(),
             entity_count: *c as usize,
         })
         .collect();
-    audit.phase1_upload.layer_count = layers.len();
+    audit.phase1_upload.layer_count = all_layers.len();
     audit.phase1_upload.layer_count_populated = populated.len();
-    audit.phase1_upload.layer_list = layers.iter().map(|(n, _)| n.clone()).collect();
+    audit.phase1_upload.layer_list = all_layers
+        .iter()
+        .map(|(n, _): &(String, i32)| n.clone())
+        .collect();
     audit.phase1_upload.populated_layers = populated;
-    audit.phase1_upload.dimension_count = dimensions.len();
-    audit.phase1_upload.annotation_count = annotations.len();
+    audit.phase1_upload.dimension_count = all_dimensions.len();
+    audit.phase1_upload.annotation_count = all_annotations.len();
+
+    // Per-structure summaries: bbox + dim/ann counts + KSS subtotals so the
+    // frontend's audit drawer can render one row per detected module.
+    if !structures.is_empty() {
+        let bboxes: Vec<(Uuid, f64, f64, f64, f64)> = sqlx::query_as(
+            "SELECT id, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+             FROM drawing_structures WHERE drawing_id = $1 ORDER BY structure_index ASC",
+        )
+        .bind(drawing_id)
+        .fetch_all(&ctx.db)
+        .await
+        .unwrap_or_default();
+        let bbox_lookup: HashMap<Uuid, (f64, f64, f64, f64)> = bboxes
+            .iter()
+            .map(|(id, x0, y0, x1, y1)| (*id, (*x0, *y0, *x1, *y1)))
+            .collect();
+
+        for (idx, (sid, label)) in structures.iter().enumerate() {
+            let dim_n: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM drawing_dimensions WHERE drawing_id = $1 AND structure_id = $2"
+            ).bind(drawing_id).bind(*sid).fetch_one(&ctx.db).await.unwrap_or(0);
+            let ann_n: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM drawing_annotations WHERE drawing_id = $1 AND structure_id = $2"
+            ).bind(drawing_id).bind(*sid).fetch_one(&ctx.db).await.unwrap_or(0);
+            let subtotal: Option<f64> = sqlx::query_scalar(
+                "SELECT COALESCE(SUM(total_lv), 0) FROM kss_line_items
+                 WHERE report_id = $1 AND structure_id = $2",
+            )
+            .bind(report_id)
+            .bind(*sid)
+            .fetch_one(&ctx.db)
+            .await
+            .ok();
+            let line_n: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM kss_line_items WHERE report_id = $1 AND structure_id = $2"
+            ).bind(report_id).bind(*sid).fetch_one(&ctx.db).await.unwrap_or(0);
+            let bbox = bbox_lookup.get(sid).copied().unwrap_or((0.0, 0.0, 0.0, 0.0));
+            audit.structures.push(kcc_core::kss::audit::StructureAudit {
+                structure_id: Some(sid.to_string()),
+                structure_index: idx,
+                label: label.clone(),
+                bbox_min_x: bbox.0,
+                bbox_min_y: bbox.1,
+                bbox_max_x: bbox.2,
+                bbox_max_y: bbox.3,
+                entity_count: 0,
+                dimension_count: dim_n as usize,
+                annotation_count: ann_n as usize,
+                line_item_count: line_n as usize,
+                subtotal_lv: subtotal.unwrap_or(0.0),
+            });
+        }
+    }
 
     // Semantic feature-type counts (extracted features, not raw DXF entity
     // types — the ai_full path doesn't load the raw entity list). These are
@@ -1050,7 +1325,20 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     p5.ai_enabled = true;
     p5.ai_model = OPUS_MODEL.to_string();
     p5.ai_prompt_system_preview = truncate_for_audit(system_prompt, 5000);
-    p5.ai_prompt_user_preview = truncate_for_audit(&opus_prompt, 10000);
+    // Per-structure prompts vary; keep a placeholder summary mentioning the
+    // module count rather than dumping any one structure's prompt.
+    p5.ai_prompt_user_preview = truncate_for_audit(
+        &format!(
+            "Generated KSS across {} structure(s): {}",
+            n_structs,
+            target_structures
+                .iter()
+                .map(|(_, l)| l.clone())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        2000,
+    );
     p5.ai_latency_ms = gen_elapsed;
     p5.ai_items_generated = ai_response.total_items;
     p5.ai_items_validated = ai_kss.items.len();
@@ -1255,4 +1543,166 @@ fn format_materials_inline(v: &serde_json::Value) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Canonical KSS work categories per drawing type. The RAG search uses
+/// these as queries against the user's price corpus — one query per
+/// category per structure. Mirrors the Perplexity research-phase categories
+/// so RAG and AI cover the same surface.
+fn rag_categories_for(drawing_type: kcc_core::drawing_type::DrawingType) -> Vec<&'static str> {
+    use kcc_core::drawing_type::DrawingType;
+    match drawing_type {
+        DrawingType::Timber => vec![
+            "KVH конструкционна дървесина",
+            "BSH ламелирана дървесина",
+            "OSB плочи 18 mm",
+            "OSB плочи 10 mm",
+            "Шперплат мебелен 18 mm",
+            "Минерална каменна вата",
+            "Топлоизолация неопор EPS",
+            "Ламарина за фасада и покрив",
+            "PVC 5-камерна дограма",
+            "Вътрешни врати",
+            "Лепило за фасадни панели",
+            "Летвена скара",
+            "Дъски 25 mm обшивка",
+            "Паропропусклива фолио",
+            "Конструктивни планки крепежни елементи",
+            "Стълба и второ ниво",
+            "Транспорт",
+        ],
+        DrawingType::Steel => vec![
+            "Стоманени профили IPE HEB UPN",
+            "Заваръчни работи",
+            "Болтови съединения",
+            "Антикорозионна защита",
+            "Кофраж за стоманобетонни елементи",
+            "Бетон C25/30",
+            "Армировка стомана B500B",
+            "Стоманени плочи ламарина",
+            "Монтаж на стоманена конструкция кран",
+            "Транспорт стоманена конструкция",
+        ],
+        DrawingType::Architectural | DrawingType::Mechanical | DrawingType::Unknown => vec![
+            "Тухлена зидария",
+            "Газобетонна зидария",
+            "Вътрешна мазилка",
+            "Латексово боядисване",
+            "Подови настилки ламинат",
+            "Подови настилки плочки",
+            "Хидроизолация",
+            "Топлоизолация EPS",
+            "PVC дограма",
+            "ВиК тоалетна",
+            "ВиК мивка",
+            "Транспорт",
+        ],
+    }
+}
+
+/// Lower-cased, stripped key for de-duping items between RAG and AI.
+fn canonical_desc_key(s: &str) -> String {
+    s.trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// RAG retrieval per structure. For each canonical category, search the
+/// user's price corpus and emit a KssLineItem from the top match (when
+/// similarity ≥ 0.30). Quantity is taken from the corpus row as a starting
+/// point — the user reviews and adjusts in the KSS UI before signing.
+async fn generate_rag_items_for_structure(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    drawing_type: kcc_core::drawing_type::DrawingType,
+) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
+    use kcc_core::price_corpus::search::{search_corpus, SearchOptions};
+
+    let opts = SearchOptions {
+        min_similarity: 0.30,
+        top_k: 1,
+    };
+
+    let mut items: Vec<kcc_core::kss::types::KssLineItem> = Vec::new();
+    let mut seen_corpus_ids: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
+    let mut item_no = 0usize;
+    for (cat_idx, query) in rag_categories_for(drawing_type).iter().enumerate() {
+        let matches = search_corpus(db, user_id, query, opts).await?;
+        let Some(top) = matches.into_iter().next() else {
+            continue;
+        };
+        // De-dup: a single corpus row could match two categories (e.g.
+        // "OSB 18" and "OSB"). Skip if we've already used it.
+        if !seen_corpus_ids.insert(top.id) {
+            continue;
+        }
+        let qty = 0.0; // forces user to fill in quantity per the new drawing
+        let total = top.total_unit_price_lv * qty;
+        let sek_code = top
+            .sek_code
+            .clone()
+            .unwrap_or_else(|| sek_code_for_query(query).to_string());
+        item_no += 1;
+        items.push(kcc_core::kss::types::KssLineItem {
+            item_no,
+            sek_code,
+            description: top.description.clone(),
+            unit: top.unit.clone(),
+            quantity: qty,
+            material_price: top.material_price_lv,
+            labor_price: top.labor_price_lv,
+            mechanization_price: 0.0,
+            overhead_price: 0.0,
+            total_price: total,
+            confidence: top.similarity,
+            reasoning: format!(
+                "Matched corpus row (similarity {:.2}) — quantity needs to be set for this drawing.",
+                top.similarity
+            ),
+            provenance: "rag".to_string(),
+            source_layer: None,
+            extraction_method: Some("user_corpus".to_string()),
+            geometry_confidence: top.similarity,
+            needs_review: true,
+            ..Default::default()
+        });
+        let _ = cat_idx;
+    }
+    Ok(items)
+}
+
+/// Best-effort mapping from a category query to a SEK group code, used
+/// when the corpus row carries no explicit sek_code.
+fn sek_code_for_query(q: &str) -> &'static str {
+    let lc = q.to_lowercase();
+    if lc.contains("kvh") || lc.contains("bsh") || lc.contains("дървесина") {
+        "СЕК05.001"
+    } else if lc.contains("osb") || lc.contains("шперплат") || lc.contains("обшивка") {
+        "СЕК06.001"
+    } else if lc.contains("вата") || lc.contains("eps") || lc.contains("неопор") || lc.contains("топлоизолация") {
+        "СЕК16.001"
+    } else if lc.contains("ламарина") || lc.contains("фасада") {
+        "СЕК07.001"
+    } else if lc.contains("дограма") {
+        "СЕК17.001"
+    } else if lc.contains("врат") {
+        "СЕК17.020"
+    } else if lc.contains("транспорт") {
+        "СЕК24.001"
+    } else if lc.contains("зидария") {
+        "СЕК05.002"
+    } else if lc.contains("мазилка") {
+        "СЕК10.011"
+    } else if lc.contains("боядисване") {
+        "СЕК13.030"
+    } else if lc.contains("стомана") || lc.contains("ipe") || lc.contains("heb") {
+        "СЕК14.001"
+    } else {
+        "СЕК99.999"
+    }
 }

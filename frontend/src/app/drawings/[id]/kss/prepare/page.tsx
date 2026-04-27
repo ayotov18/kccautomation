@@ -15,6 +15,16 @@ export default function AiKssPrepare() {
   const [items, setItems] = useState<AiResearchItem[]>([]);
   const [generating, setGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  /** Generation backend chosen by the user. */
+  const [mode, setMode] = useState<'ai' | 'rag' | 'hybrid'>('ai');
+  /** Corpus row count — drives RAG availability messaging. */
+  const [corpusSize, setCorpusSize] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.listCorpusImports()
+      .then(d => setCorpusSize(d.total_corpus_rows))
+      .catch(() => setCorpusSize(0));
+  }, []);
 
   // Poll status during research phase
   useEffect(() => {
@@ -54,7 +64,7 @@ export default function AiKssPrepare() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      await api.triggerAiKssGeneration(drawingId);
+      await api.triggerAiKssGeneration(drawingId, mode);
       setStatus('generating');
       // Poll for completion
       const poll = setInterval(async () => {
@@ -161,13 +171,26 @@ export default function AiKssPrepare() {
             <span className="text-xs text-content-tertiary">{approvedCount} of {items.length} items approved</span>
             <button
               onClick={handleGenerate}
-              disabled={generating || approvedCount === 0}
+              disabled={generating || (mode !== 'rag' && approvedCount === 0)}
               className="px-5 py-2.5 bg-sky-500/90 hover:bg-sky-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-900 rounded-lg text-sm font-medium transition-colors"
             >
-              {generating ? 'Generating...' : 'Generate KSS with Opus 4.6'}
+              {generating
+                ? 'Generating...'
+                : mode === 'rag'
+                ? 'Generate from My Library'
+                : mode === 'hybrid'
+                ? 'Generate (Library + AI)'
+                : 'Generate KSS with Opus 4.6'}
             </button>
           </div>
         </div>
+
+        {/* Mode chooser. RAG-only is greyed out when the user has no corpus. */}
+        <ModeChooser
+          mode={mode}
+          onChange={setMode}
+          corpusSize={corpusSize}
+        />
 
         {/* Research items grouped by SEK group */}
         {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([group, groupItems]) => (
@@ -269,6 +292,82 @@ export default function AiKssPrepare() {
             </table>
           </section>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ModeChooser({
+  mode,
+  onChange,
+  corpusSize,
+}: {
+  mode: 'ai' | 'rag' | 'hybrid';
+  onChange: (m: 'ai' | 'rag' | 'hybrid') => void;
+  corpusSize: number | null;
+}) {
+  const ragDisabled = corpusSize !== null && corpusSize === 0;
+  const options = [
+    {
+      key: 'ai' as const,
+      title: 'AI Search',
+      desc: 'Perplexity researches current Bulgarian market prices online; Opus 4.6 builds the КСС.',
+      hint: 'Best when you have no prior offers loaded yet.',
+      disabled: false,
+    },
+    {
+      key: 'rag' as const,
+      title: 'From My Library',
+      desc: 'Reuses prices from offers you have already uploaded. No web search, no AI generation.',
+      hint:
+        corpusSize === null
+          ? 'Loading library size…'
+          : corpusSize === 0
+          ? 'Empty library — upload an offer first in /prices/library.'
+          : `${corpusSize} priced rows in your library.`,
+      disabled: ragDisabled,
+    },
+    {
+      key: 'hybrid' as const,
+      title: 'Both',
+      desc: 'Uses My Library where it has matches; falls back to AI for items the library doesn\'t cover.',
+      hint: 'Recommended when your library is incomplete.',
+      disabled: ragDisabled,
+    },
+  ];
+
+  return (
+    <div className="oe-card p-4">
+      <div className="text-sm font-semibold mb-3">Generation backend</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {options.map((o) => {
+          const active = mode === o.key;
+          return (
+            <button
+              key={o.key}
+              onClick={() => !o.disabled && onChange(o.key)}
+              disabled={o.disabled}
+              className={`text-left p-3 rounded-lg border transition-colors ${
+                active
+                  ? 'border-sky-400 bg-sky-500/10'
+                  : o.disabled
+                  ? 'border-border-light/30 opacity-50 cursor-not-allowed'
+                  : 'border-border-light hover:border-sky-500/50'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-3 h-3 rounded-full border ${
+                    active ? 'border-sky-400 bg-sky-400' : 'border-border-light'
+                  }`}
+                />
+                <span className="font-medium text-sm">{o.title}</span>
+              </div>
+              <div className="text-xs text-content-tertiary mt-1.5">{o.desc}</div>
+              <div className="text-[11px] text-content-tertiary mt-1 italic">{o.hint}</div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

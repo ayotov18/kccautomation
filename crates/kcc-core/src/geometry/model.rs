@@ -266,6 +266,12 @@ pub struct Drawing {
     pub annotations: Vec<Annotation>,
     pub datums: Vec<Datum>,
     pub metadata: DrawingMetadata,
+    /// Detected spatial modules in this drawing. Always at least one when the
+    /// drawing has entities; multi-module sheets (side-by-side floor plans)
+    /// produce N entries that downstream takeoff/KSS pipelines iterate over.
+    /// Populated by `kcc_core::geometry::structure::detect_structures`.
+    #[serde(default)]
+    pub structures: Vec<super::structure::Structure>,
 }
 
 impl Drawing {
@@ -284,6 +290,7 @@ impl Drawing {
                 scale: None,
                 sheet_size: None,
             },
+            structures: Vec::new(),
         }
     }
 }

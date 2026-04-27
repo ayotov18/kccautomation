@@ -11,6 +11,8 @@ pub mod geometry;
 pub mod kcc;
 pub mod kss;
 #[cfg(feature = "scraping")]
+pub mod price_corpus;
+#[cfg(feature = "scraping")]
 pub mod scraper;
 #[cfg(feature = "scraping")]
 pub mod quantity_scraper;

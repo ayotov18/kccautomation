@@ -422,6 +422,11 @@ fn convert_dxf(dxf: DxfDrawing, filename: String) -> Result<Drawing, ParseError>
     // Apply normalization
     super::normalizer::normalize(&mut drawing);
 
+    // Detect spatial modules. Single-module drawings produce one structure;
+    // multi-module sheets (side-by-side floor plans) produce N. Downstream
+    // takeoff/KSS pipelines iterate over this list.
+    drawing.structures = kcc_core::geometry::structure::detect_structures(&drawing);
+
     Ok(drawing)
 }
 

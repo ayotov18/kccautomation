@@ -274,7 +274,15 @@ pub async fn process_job(job: AnalyzeDrawingJob, ctx: &WorkerContext) -> Result<
     // ===================================================================
     update_status(&ctx.db, job_id, "reporting", 95).await?;
 
-    match run_deep_analysis(ctx, job_id, drawing_id, &dxf_bytes_for_deep).await {
+    match run_deep_analysis(
+        ctx,
+        job_id,
+        drawing_id,
+        &dxf_bytes_for_deep,
+        &drawing.structures,
+    )
+    .await
+    {
         Ok(json_size) => {
             tracing::info!(%job_id, json_size, "Deep analysis auto-completed");
         }
@@ -358,6 +366,7 @@ async fn run_deep_analysis(
     job_id: Uuid,
     drawing_id: Uuid,
     dxf_bytes: &[u8],
+    structures: &[kcc_core::geometry::structure::Structure],
 ) -> Result<usize> {
     let deep_json = kcc_dxf::deep_analyze::deep_analyze(dxf_bytes, "original.dwg")
         .map_err(|e| anyhow::anyhow!("Deep analysis failed: {e}"))?;
@@ -375,12 +384,62 @@ async fn run_deep_analysis(
     // and silently kept old rows around forever. Now we delete first,
     // so triggering /drawings/{id}/deep-analyze always reflects the
     // latest parser output.
-    for table in ["drawing_layers", "drawing_blocks", "drawing_dimensions", "drawing_annotations"] {
+    for table in [
+        "drawing_layers",
+        "drawing_blocks",
+        "drawing_dimensions",
+        "drawing_annotations",
+        "drawing_structures",
+    ] {
         let _ = sqlx::query(&format!("DELETE FROM {table} WHERE drawing_id = $1"))
             .bind(drawing_id)
             .execute(&ctx.db)
             .await;
     }
+
+    // ── Insert detected structures (modules) ───────────────
+    // Multi-module sheets pack 2+ floor plans into one DWG. Each gets its
+    // own row here so downstream KSS line items can be tagged per-module
+    // and the frontend renders one tab per structure.
+    let mut structure_ids: Vec<(usize, Uuid, [f64; 4])> = Vec::with_capacity(structures.len());
+    for (idx, s) in structures.iter().enumerate() {
+        let new_id: (Uuid,) = sqlx::query_as(
+            "INSERT INTO drawing_structures
+                (drawing_id, structure_index, label,
+                 bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y,
+                 entity_count, dimension_count, annotation_count)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             RETURNING id",
+        )
+        .bind(drawing_id)
+        .bind(idx as i32)
+        .bind(&s.label)
+        .bind(s.bbox_min.x)
+        .bind(s.bbox_min.y)
+        .bind(s.bbox_max.x)
+        .bind(s.bbox_max.y)
+        .bind(s.entity_ids.len() as i32)
+        .bind(s.dimension_ids.len() as i32)
+        .bind(s.annotation_ids.len() as i32)
+        .fetch_one(&ctx.db)
+        .await?;
+        structure_ids.push((
+            idx,
+            new_id.0,
+            [s.bbox_min.x, s.bbox_min.y, s.bbox_max.x, s.bbox_max.y],
+        ));
+    }
+
+    // Helper: which structure does (x,y) belong to? Returns None when point
+    // is outside every detected bbox (e.g., title-block annotations).
+    let structure_for_point = |x: f64, y: f64| -> Option<Uuid> {
+        for (_, sid, bbox) in &structure_ids {
+            if x >= bbox[0] && x <= bbox[2] && y >= bbox[1] && y <= bbox[3] {
+                return Some(*sid);
+            }
+        }
+        None
+    };
 
     // ── Persist to normalized Postgres tables ──────────────
     // This is the PRIMARY data source for AI pipelines — not S3.
@@ -465,31 +524,73 @@ async fn run_deep_analysis(
         }
     }
 
-    // Insert dimensions
+    // Insert dimensions, tagging each with the owning structure when its
+    // first definition point lies inside one of the detected bboxes.
     if let Some(dims) = deep_json.get("dimensions").and_then(|d| d.as_array()) {
         for dim in dims {
             let dim_type = dim.get("type").and_then(|t| t.as_str()).unwrap_or("unknown");
-            let value = dim.get("actual_measurement").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let value = dim
+                .get("actual_measurement")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
             let layer = dim.get("layer").and_then(|l| l.as_str());
+            // Try multiple coordinate fields the deep_analyze JSON might use.
+            let (px, py) = dim
+                .get("definition_point_1")
+                .and_then(|p| p.as_array())
+                .and_then(|a| {
+                    Some((
+                        a.first()?.as_f64()?,
+                        a.get(1)?.as_f64()?,
+                    ))
+                })
+                .or_else(|| {
+                    dim.get("text_mid_point")
+                        .and_then(|p| p.as_array())
+                        .and_then(|a| Some((a.first()?.as_f64()?, a.get(1)?.as_f64()?)))
+                })
+                .unwrap_or((f64::NAN, f64::NAN));
+            let sid = if px.is_finite() && py.is_finite() {
+                structure_for_point(px, py)
+            } else {
+                None
+            };
             let _ = sqlx::query(
-                "INSERT INTO drawing_dimensions (drawing_id, dim_type, value, layer) VALUES ($1, $2, $3, $4)"
+                "INSERT INTO drawing_dimensions (drawing_id, dim_type, value, layer, structure_id) VALUES ($1, $2, $3, $4, $5)"
             )
-            .bind(drawing_id).bind(dim_type).bind(value).bind(layer)
+            .bind(drawing_id).bind(dim_type).bind(value).bind(layer).bind(sid)
             .execute(&ctx.db).await;
         }
     }
 
-    // Insert annotations
+    // Insert annotations, tagging by insertion-point bbox match.
     if let Some(anns) = deep_json.get("annotations").and_then(|a| a.as_array()) {
         for ann in anns {
             let text = ann.get("value").and_then(|v| v.as_str()).unwrap_or("");
-            if text.is_empty() || text == "None" { continue; }
+            if text.is_empty() || text == "None" {
+                continue;
+            }
             let layer = ann.get("layer").and_then(|l| l.as_str());
             let ann_type = ann.get("type").and_then(|t| t.as_str());
+            let (px, py) = ann
+                .get("location")
+                .and_then(|p| p.as_array())
+                .and_then(|a| Some((a.first()?.as_f64()?, a.get(1)?.as_f64()?)))
+                .or_else(|| {
+                    ann.get("insertion_point")
+                        .and_then(|p| p.as_array())
+                        .and_then(|a| Some((a.first()?.as_f64()?, a.get(1)?.as_f64()?)))
+                })
+                .unwrap_or((f64::NAN, f64::NAN));
+            let sid = if px.is_finite() && py.is_finite() {
+                structure_for_point(px, py)
+            } else {
+                None
+            };
             let _ = sqlx::query(
-                "INSERT INTO drawing_annotations (drawing_id, text, layer, ann_type) VALUES ($1, $2, $3, $4)"
+                "INSERT INTO drawing_annotations (drawing_id, text, layer, ann_type, structure_id) VALUES ($1, $2, $3, $4, $5)"
             )
-            .bind(drawing_id).bind(text).bind(layer).bind(ann_type)
+            .bind(drawing_id).bind(text).bind(layer).bind(ann_type).bind(sid)
             .execute(&ctx.db).await;
         }
     }

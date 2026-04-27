@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import type { KssAuditTrailEntry, UserPhaseSummary } from '@/types';
 
@@ -116,6 +116,11 @@ export default function KssAuditTrail({ drawingId, onClose }: Props) {
 
         {/* Timeline */}
         <div className="bg-gray-900 rounded-b-lg">
+          {/* Detected structures (modules) — one card per spatial module the
+              parser found in the drawing. Hidden when the drawing is single-
+              module (or pre-structure-detection legacy data). */}
+          <DetectedStructuresPanel data={auditData} drawingId={drawingId} />
+
           {mode === 'user' && userSummary ? (
             <UserModeView summary={userSummary} />
           ) : (
@@ -139,6 +144,180 @@ export default function KssAuditTrail({ drawingId, onClose }: Props) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface StructureAuditRow {
+  structure_id?: string;
+  structure_index: number;
+  label: string;
+  bbox_min_x: number;
+  bbox_min_y: number;
+  bbox_max_x: number;
+  bbox_max_y: number;
+  dimension_count: number;
+  annotation_count: number;
+  line_item_count: number;
+  subtotal_lv: number;
+}
+
+function DetectedStructuresPanel({
+  data,
+  drawingId,
+}: {
+  data: Record<string, unknown>;
+  drawingId: string;
+}) {
+  const rows = (data.structures as StructureAuditRow[] | undefined) ?? [];
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  const selectableIds = useMemo(
+    () => rows.map((r) => r.structure_id).filter((s): s is string => !!s),
+    [rows],
+  );
+
+  if (rows.length === 0) return null;
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const onMerge = async () => {
+    if (selected.size < 2) return;
+    const ids = [...selected];
+    const targetId = ids[0];
+    const sourceIds = ids.slice(1);
+    setBusy(true);
+    setErrMsg(null);
+    try {
+      await api.mergeStructures(drawingId, sourceIds, targetId);
+      window.location.reload();
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : 'Merge failed');
+      setBusy(false);
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    if (!confirm('Delete this module? Its KSS line items will move to the recap.'))
+      return;
+    setBusy(true);
+    setErrMsg(null);
+    try {
+      await api.deleteStructure(drawingId, id);
+      window.location.reload();
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : 'Delete failed');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="border-b border-gray-700 px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-white">
+          Detected modules
+          <span className="ml-2 text-xs text-gray-400 font-normal">
+            {rows.length} spatial cluster{rows.length === 1 ? '' : 's'}
+          </span>
+        </h3>
+        {selectableIds.length > 1 && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-gray-400">{selected.size} selected</span>
+            <button
+              onClick={onMerge}
+              disabled={selected.size < 2 || busy}
+              className="px-2 py-1 rounded border border-blue-500/50 bg-blue-500/10 text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Merge selected modules into the first one"
+            >
+              Merge {selected.size > 0 ? `(${selected.size})` : ''}
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              disabled={selected.size === 0}
+              className="px-2 py-1 rounded text-gray-400 hover:text-white disabled:opacity-30"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+      {errMsg && (
+        <div className="mb-2 text-xs text-red-400 bg-red-900/20 border border-red-500/30 rounded px-2 py-1">
+          {errMsg}
+        </div>
+      )}
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}
+      >
+        {rows.map((s) => {
+          const w = Math.max(0, s.bbox_max_x - s.bbox_min_x);
+          const h = Math.max(0, s.bbox_max_y - s.bbox_min_y);
+          const id = s.structure_id ?? '';
+          const isSelected = id !== '' && selected.has(id);
+          return (
+            <div
+              key={s.structure_index}
+              className={`rounded border p-2 transition-colors ${
+                isSelected ? 'border-blue-400 bg-blue-500/10' : 'border-gray-700 bg-gray-950/40'
+              }`}
+            >
+              <div className="flex items-baseline justify-between">
+                <label className="flex items-center gap-2 text-sm text-white font-medium cursor-pointer">
+                  {id !== '' && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggle(id)}
+                      className="cursor-pointer"
+                    />
+                  )}
+                  {s.label}
+                </label>
+                <div className="text-[10px] text-gray-500">#{s.structure_index + 1}</div>
+              </div>
+              <div className="mt-1 text-[11px] text-gray-400">
+                bbox {w.toFixed(0)} × {h.toFixed(0)}
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-x-2 text-[11px] text-gray-300">
+                <div>
+                  dims: <span className="text-blue-300">{s.dimension_count}</span>
+                </div>
+                <div>
+                  anns: <span className="text-blue-300">{s.annotation_count}</span>
+                </div>
+                <div>
+                  lines: <span className="text-blue-300">{s.line_item_count}</span>
+                </div>
+                <div className="text-right text-emerald-300 font-mono">
+                  {s.subtotal_lv.toFixed(0)}
+                </div>
+              </div>
+              {id !== '' && (
+                <div className="mt-1.5 flex justify-end">
+                  <button
+                    onClick={() => onDelete(id)}
+                    disabled={busy}
+                    className="text-[10px] text-red-400 hover:text-red-300 disabled:opacity-30"
+                    title="Discard this module — line items move to the recap"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

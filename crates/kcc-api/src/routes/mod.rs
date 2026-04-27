@@ -11,6 +11,7 @@ pub mod drawings;
 pub mod features;
 pub mod jobs;
 pub mod kss;
+pub mod price_corpus;
 pub mod prices;
 pub mod projects;
 pub mod render;

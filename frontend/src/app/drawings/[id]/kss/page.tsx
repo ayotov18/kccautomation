@@ -25,6 +25,9 @@ interface KssItem {
   mechanization_price: number;
   overhead_price: number;
   total_price: number;
+  /** Detected spatial module this line belongs to (multi-module DWG only). */
+  structure_id?: string;
+  structure_label?: string;
   // Edit tracking — snapshot of values at load time
   edited?: boolean;
   original_sek_code?: string;
@@ -33,6 +36,16 @@ interface KssItem {
   original_unit?: string;
   original_labor_price?: number;
   original_material_price?: number;
+}
+
+/** Module / structure detected in a multi-module sheet. */
+interface KssStructure {
+  id: string;
+  index: number;
+  label: string;
+  bbox: [number, number, number, number];
+  subtotal_lv: number;
+  line_count: number;
 }
 
 interface KssSection {
@@ -50,6 +63,9 @@ export default function KssReportPage() {
 
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [sections, setSections] = useState<KssSection[]>([]);
+  const [structures, setStructures] = useState<KssStructure[]>([]);
+  /** "all" = recap (all modules summed); otherwise a structure id. */
+  const [activeStructure, setActiveStructure] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   /** True during post-save refetch — swaps table/summary with skeletons. */
   const [refreshing, setRefreshing] = useState(false);
@@ -143,6 +159,15 @@ export default function KssReportPage() {
       // Load suggestions (low-confidence AI items)
       if (data.suggestions && Array.isArray(data.suggestions)) {
         setSuggestions(data.suggestions as KssSuggestion[]);
+      }
+
+      // Load detected structures (modules). Empty array for single-module
+      // drawings (or legacy uploads pre-structure-detection); the UI renders
+      // them as one Recap tab in that case.
+      if (Array.isArray((data as Record<string, unknown>).structures)) {
+        setStructures((data as { structures: KssStructure[] }).structures);
+      } else {
+        setStructures([]);
       }
 
       // Default-open the first section if nothing persisted.
@@ -347,6 +372,25 @@ export default function KssReportPage() {
 
   const subtotal = report.subtotal_lv as number ?? 0;
 
+  // When a single module is active, derive a filtered section list whose
+  // per-section subtotal reflects only that module's items. The "all" tab
+  // shows the unfiltered report. Single-module drawings always render the
+  // full sections list since `structures.length === 0`.
+  const displayedSections: KssSection[] = (() => {
+    if (activeStructure === 'all' || structures.length <= 1) return sections;
+    return sections
+      .map((sec) => {
+        const items = sec.items.filter((it) => it.structure_id === activeStructure);
+        const section_total_bgn = items.reduce((s, it) => s + (it.total_price || 0), 0);
+        return { ...sec, items, section_total_bgn };
+      })
+      .filter((sec) => sec.items.length > 0);
+  })();
+  const displayedSubtotal =
+    activeStructure === 'all' || structures.length <= 1
+      ? subtotal
+      : structures.find((s) => s.id === activeStructure)?.subtotal_lv ?? 0;
+
   return (
     <div className="oe-fade-in">
 <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -418,6 +462,34 @@ export default function KssReportPage() {
           </div>
         )}
 
+        {/* Per-module tab strip — shown only for multi-module DWGs.
+            Single-module drawings hide this entirely (no extra UI noise).
+            Double-click a tab to rename the module inline. */}
+        {structures.length > 1 && (
+          <ModuleTabStrip
+            structures={structures}
+            activeStructure={activeStructure}
+            totalItemCount={sections.reduce((s, x) => s + x.items.length, 0)}
+            onSelect={setActiveStructure}
+            onRename={async (id, label) => {
+              try {
+                await api.renameStructure(drawingId, id, label);
+                setStructures((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
+                setSections((prev) =>
+                  prev.map((sec) => ({
+                    ...sec,
+                    items: sec.items.map((it) =>
+                      it.structure_id === id ? { ...it, structure_label: label } : it,
+                    ),
+                  })),
+                );
+              } catch {
+                /* swallow — UI keeps prior label on failure */
+              }
+            }}
+          />
+        )}
+
         {/* AI-heavy banner: when >50% of rows are ai_inferred, tell the user
             to review every row before submission. */}
         {(() => {
@@ -460,15 +532,15 @@ export default function KssReportPage() {
             <div className="text-xs text-content-tertiary">Позиции</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-emerald-400">{subtotal.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-emerald-400">{displayedSubtotal.toFixed(2)}</div>
             <div className="text-xs text-content-tertiary">Общо СМР (€)</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-content-secondary">{(subtotal * 0.58).toFixed(2)}</div>
+            <div className="text-2xl font-bold text-content-secondary">{(displayedSubtotal * 0.58).toFixed(2)}</div>
             <div className="text-xs text-content-tertiary">Надбавки (58%)</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-sky-300">{(subtotal * 1.58 * 1.20).toFixed(2)}</div>
+            <div className="text-2xl font-bold text-sky-300">{(displayedSubtotal * 1.58 * 1.20).toFixed(2)}</div>
             <div className="text-xs text-content-tertiary">Общо с ДДС (€)</div>
           </div>
         </div>
@@ -506,7 +578,7 @@ export default function KssReportPage() {
                 label: `Позиции · ${sections.length} секции`,
                 content: (
                   <ScrollableSections
-                    sections={sections}
+                    sections={displayedSections}
                     openGroups={openGroups}
                     addingToSection={addingToSection}
                     onToggleGroup={toggleGroup}
@@ -847,5 +919,94 @@ function EditableCell({ value, onChange, edited = false, className = '', type = 
     >
       {value || '-'}
     </span>
+  );
+}
+
+/** Multi-module tab strip with inline rename. Double-click any tab to edit
+ *  the label (Enter to save, Esc to cancel). */
+function ModuleTabStrip({
+  structures,
+  activeStructure,
+  totalItemCount,
+  onSelect,
+  onRename,
+}: {
+  structures: KssStructure[];
+  activeStructure: string;
+  totalItemCount: number;
+  onSelect: (id: string) => void;
+  onRename: (id: string, label: string) => Promise<void>;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState('');
+
+  const startEdit = (s: KssStructure) => {
+    setEditingId(s.id);
+    setDraftLabel(s.label);
+  };
+  const commit = async () => {
+    if (!editingId) return;
+    const label = draftLabel.trim();
+    if (label) await onRename(editingId, label);
+    setEditingId(null);
+  };
+  const cancel = () => setEditingId(null);
+
+  return (
+    <div className="flex items-center gap-1 border-b border-border-light/50 -mb-2 overflow-x-auto">
+      <button
+        key="all"
+        onClick={() => onSelect('all')}
+        className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${
+          activeStructure === 'all'
+            ? 'border-sky-400 text-sky-300 font-medium'
+            : 'border-transparent text-content-tertiary hover:text-content-secondary'
+        }`}
+      >
+        Рекап · всички модули
+        <span className="ml-2 text-[10px] text-content-tertiary">
+          {totalItemCount} поз.
+        </span>
+      </button>
+      {structures.map((s) => {
+        const isActive = activeStructure === s.id;
+        const isEditing = editingId === s.id;
+        return (
+          <div
+            key={s.id}
+            className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              isActive
+                ? 'border-sky-400 text-sky-300 font-medium'
+                : 'border-transparent text-content-tertiary hover:text-content-secondary'
+            }`}
+            onClick={() => !isEditing && onSelect(s.id)}
+            onDoubleClick={() => startEdit(s)}
+            title="Double-click to rename"
+          >
+            {isEditing ? (
+              <input
+                value={draftLabel}
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commit();
+                  if (e.key === 'Escape') cancel();
+                }}
+                autoFocus
+                className="bg-surface-tertiary border border-sky-500 rounded px-1.5 py-0.5 text-sm focus:outline-none"
+                style={{ minWidth: 80 }}
+              />
+            ) : (
+              <>
+                {s.label}
+                <span className="ml-2 text-[10px] text-content-tertiary">
+                  {s.line_count} поз. · {s.subtotal_lv.toFixed(0)} €
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

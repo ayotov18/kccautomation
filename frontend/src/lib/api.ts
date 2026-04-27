@@ -408,10 +408,6 @@ class ApiClient {
     });
   }
 
-  async triggerAiKssGeneration(drawingId: string): Promise<{ job_id: string; session_id: string }> {
-    return this.request(`/drawings/${drawingId}/ai-kss/generate`, { method: 'POST' });
-  }
-
   // === Drawing Summary (Overview page) ===
 
   async getDrawingSummary(drawingId: string): Promise<Record<string, unknown>> {
@@ -448,6 +444,77 @@ class ApiClient {
 
   async finalizeKss(drawingId: string): Promise<{ status: string; item_count: number; total_with_vat_bgn: number }> {
     return this.request(`/reports/${drawingId}/kss/finalize`, { method: 'POST' });
+  }
+
+  async renameStructure(drawingId: string, structureId: string, label: string): Promise<{ label: string }> {
+    return this.request(`/drawings/${drawingId}/structures/${structureId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ label }),
+    });
+  }
+
+  async mergeStructures(drawingId: string, sourceIds: string[], targetId: string): Promise<{
+    merged_into: string; removed: string[]; new_bbox: number[];
+  }> {
+    return this.request(`/drawings/${drawingId}/structures/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ source_ids: sourceIds, target_id: targetId }),
+    });
+  }
+
+  async deleteStructure(drawingId: string, structureId: string): Promise<{ deleted: boolean }> {
+    return this.request(`/drawings/${drawingId}/structures/${structureId}/delete`, {
+      method: 'POST',
+    });
+  }
+
+  // === Price corpus (self-hosted RAG) ===
+
+  async importPriceCorpus(file: File): Promise<{
+    import_id: string; filename: string; sheet_count: number;
+    row_count: number; skipped_count: number; deduped: boolean;
+  }> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.request(`/price-corpus/import`, { method: 'POST', body: form });
+  }
+
+  async listCorpusImports(): Promise<{
+    imports: Array<{ id: string; filename: string; sheet_count: number; row_count: number; skipped_count: number; imported_at: string }>;
+    total_corpus_rows: number;
+  }> {
+    return this.request(`/price-corpus/imports`);
+  }
+
+  async listCorpus(opts?: { q?: string; limit?: number; offset?: number }): Promise<{
+    rows: Array<{
+      id: string; sek_code: string | null; description: string; unit: string;
+      quantity: number | null; material_price_lv: number | null;
+      labor_price_lv: number | null; total_unit_price_lv: number | null;
+      currency: string; source_sheet: string | null; source_row: number | null;
+      import_id: string | null; created_at: string;
+    }>;
+    total: number; limit: number; offset: number;
+  }> {
+    const qs = new URLSearchParams();
+    if (opts?.q) qs.set('q', opts.q);
+    if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
+    if (opts?.offset !== undefined) qs.set('offset', String(opts.offset));
+    const q = qs.toString();
+    return this.request(`/price-corpus${q ? `?${q}` : ''}`);
+  }
+
+  async deleteCorpusImport(importId: string): Promise<{ deleted: boolean }> {
+    return this.request(`/price-corpus/imports/${importId}`, { method: 'DELETE' });
+  }
+
+  async triggerAiKssGeneration(drawingId: string, mode: 'ai' | 'rag' | 'hybrid' = 'ai'): Promise<{
+    job_id: string; session_id: string; mode: string;
+  }> {
+    return this.request(`/drawings/${drawingId}/ai-kss/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    });
   }
 
   // === KSS Corrections & DRM ===

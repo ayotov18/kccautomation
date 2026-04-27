@@ -20,6 +20,13 @@ pub struct KssAuditTrail {
     pub timings: Vec<PhaseTimingEntry>,
     pub warnings: Vec<AuditWarning>,
     pub errors: Vec<AuditError>,
+    /// Spatial structures (modules) detected in the drawing. One entry for a
+    /// single-module drawing; N entries for multi-module sheets that pack
+    /// several floor plans into one DWG. Per-module subtotals and KSS line
+    /// counts are populated by the worker after generation completes so the
+    /// frontend can render one tab per module with its own subtotal.
+    #[serde(default)]
+    pub structures: Vec<StructureAudit>,
 }
 
 impl KssAuditTrail {
@@ -238,6 +245,26 @@ pub struct UploadParseAudit {
 pub struct PopulatedLayerAudit {
     pub name: String,
     pub entity_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StructureAudit {
+    pub structure_id: Option<String>,
+    pub structure_index: usize,
+    pub label: String,
+    pub bbox_min_x: f64,
+    pub bbox_min_y: f64,
+    pub bbox_max_x: f64,
+    pub bbox_max_y: f64,
+    pub entity_count: usize,
+    pub dimension_count: usize,
+    pub annotation_count: usize,
+    /// Number of KSS line items generated for this module.
+    #[serde(default)]
+    pub line_item_count: usize,
+    /// Subtotal in лв for this module's line items (before VAT/overhead).
+    #[serde(default)]
+    pub subtotal_lv: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
