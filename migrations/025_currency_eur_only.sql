@@ -41,6 +41,7 @@ ALTER TABLE ai_kss_research_items RENAME COLUMN edited_price_max_lv TO edited_pr
 -- drawings.kss_total_lv
 ALTER TABLE drawings RENAME COLUMN kss_total_lv TO kss_total_eur;
 
--- scraped_price_rows (legacy table — keep schema in sync)
-ALTER TABLE scraped_price_rows RENAME COLUMN price_min_lv TO price_min_eur;
-ALTER TABLE scraped_price_rows RENAME COLUMN price_max_lv TO price_max_eur;
+-- scraped_price_rows had BOTH price_min_lv AND price_min_eur from the
+-- legacy dual-storage design. Drop the _lv duplicates; _eur is canonical.
+ALTER TABLE scraped_price_rows DROP COLUMN IF EXISTS price_min_lv;
+ALTER TABLE scraped_price_rows DROP COLUMN IF EXISTS price_max_lv;
