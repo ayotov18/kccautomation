@@ -46,49 +46,78 @@ impl Default for SearchOptions {
     }
 }
 
-/// Search the user's corpus for rows similar to `query`. Returns top-K
-/// matches above the similarity floor, ordered by combined score
-/// (similarity weighted 0.7 + ts_rank weighted 0.3).
-pub async fn search_corpus(
+/// Search the user's corpus for rows similar to `query`, restricted to
+/// `import_ids` when non-empty. Returns top-K matches above the similarity
+/// floor, ordered by combined score (similarity ×0.7 + ts_rank ×0.3).
+///
+/// Empty `import_ids` searches the whole user corpus (legacy behaviour).
+/// Pass linked import IDs when running RAG for a drawing that pins one
+/// or more reference offers — guarantees the retrieval is 1:1 with that
+/// offer.
+pub async fn search_corpus_scoped(
     db: &PgPool,
     user_id: Uuid,
     query: &str,
     opts: SearchOptions,
+    import_ids: &[Uuid],
 ) -> Result<Vec<CorpusMatch>, sqlx::Error> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
     }
 
-    // We use plainto_tsquery on the 'simple' config to match the trigger.
-    // The combined score lets ts_rank break ties when several rows have
-    // the same trigram similarity.
-    // Filter out unpriced rows entirely — they pollute search results because
-    // trigram match treats them the same as priced rows even though they're
-    // useless to RAG (a row with mat=0 lab=0 contributes no price signal).
-    let rows = sqlx::query(
-        r#"
-        SELECT id, sek_code, description, unit, quantity,
-               COALESCE(material_price_eur, 0.0)   AS material_price_eur,
-               COALESCE(labor_price_eur, 0.0)      AS labor_price_eur,
-               COALESCE(total_unit_price_eur, 0.0) AS total_unit_price_eur,
-               source_sheet, source_row,
-               similarity(description, $2)        AS sim,
-               ts_rank(description_tsv, plainto_tsquery('simple', $2)) AS rank
-          FROM user_price_corpus
-         WHERE user_id = $1
-           AND similarity(description, $2) >= $3
-           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
-         ORDER BY (similarity(description, $2) * 0.7
-                  + ts_rank(description_tsv, plainto_tsquery('simple', $2)) * 0.3) DESC
-         LIMIT $4
-        "#,
-    )
-    .bind(user_id)
-    .bind(query)
-    .bind(opts.min_similarity)
-    .bind(opts.top_k as i64)
-    .fetch_all(db)
-    .await?;
+    let rows = if import_ids.is_empty() {
+        sqlx::query(
+            r#"
+            SELECT id, sek_code, description, unit, quantity,
+                   COALESCE(material_price_eur, 0.0)   AS material_price_eur,
+                   COALESCE(labor_price_eur, 0.0)      AS labor_price_eur,
+                   COALESCE(total_unit_price_eur, 0.0) AS total_unit_price_eur,
+                   source_sheet, source_row,
+                   similarity(description, $2)        AS sim,
+                   ts_rank(description_tsv, plainto_tsquery('simple', $2)) AS rank
+              FROM user_price_corpus
+             WHERE user_id = $1
+               AND similarity(description, $2) >= $3
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             ORDER BY (similarity(description, $2) * 0.7
+                      + ts_rank(description_tsv, plainto_tsquery('simple', $2)) * 0.3) DESC
+             LIMIT $4
+            "#,
+        )
+        .bind(user_id)
+        .bind(query)
+        .bind(opts.min_similarity)
+        .bind(opts.top_k as i64)
+        .fetch_all(db)
+        .await?
+    } else {
+        sqlx::query(
+            r#"
+            SELECT id, sek_code, description, unit, quantity,
+                   COALESCE(material_price_eur, 0.0)   AS material_price_eur,
+                   COALESCE(labor_price_eur, 0.0)      AS labor_price_eur,
+                   COALESCE(total_unit_price_eur, 0.0) AS total_unit_price_eur,
+                   source_sheet, source_row,
+                   similarity(description, $2)        AS sim,
+                   ts_rank(description_tsv, plainto_tsquery('simple', $2)) AS rank
+              FROM user_price_corpus
+             WHERE user_id = $1
+               AND import_id = ANY($5::uuid[])
+               AND similarity(description, $2) >= $3
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             ORDER BY (similarity(description, $2) * 0.7
+                      + ts_rank(description_tsv, plainto_tsquery('simple', $2)) * 0.3) DESC
+             LIMIT $4
+            "#,
+        )
+        .bind(user_id)
+        .bind(query)
+        .bind(opts.min_similarity)
+        .bind(opts.top_k as i64)
+        .bind(import_ids)
+        .fetch_all(db)
+        .await?
+    };
 
     let mut out = Vec::with_capacity(rows.len());
     for r in rows {
@@ -107,6 +136,17 @@ pub async fn search_corpus(
         });
     }
     Ok(out)
+}
+
+/// Whole-corpus search shorthand. Equivalent to `search_corpus_scoped` with
+/// no import filter.
+pub async fn search_corpus(
+    db: &PgPool,
+    user_id: Uuid,
+    query: &str,
+    opts: SearchOptions,
+) -> Result<Vec<CorpusMatch>, sqlx::Error> {
+    search_corpus_scoped(db, user_id, query, opts, &[]).await
 }
 
 /// Returns the count of corpus rows for a user. Used by the frontend mode

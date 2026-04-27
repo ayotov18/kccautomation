@@ -832,6 +832,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
                 &ctx.db,
                 user_id,
                 drawing_type,
+                drawing_id,
                 struct_idx,
                 n_structs,
             )
@@ -1635,42 +1636,71 @@ async fn generate_rag_items_for_structure(
     db: &sqlx::PgPool,
     user_id: Uuid,
     drawing_type: kcc_core::drawing_type::DrawingType,
+    drawing_id: Uuid,
     structure_index: usize,
     structure_count: usize,
 ) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
-    // Sheet inventory: name + total m² priced rows (a proxy for module size)
-    let sheets: Vec<(String, f64)> = sqlx::query_as(
-        "SELECT
-            COALESCE(source_sheet, '__null__') AS sheet,
-            COALESCE(SUM(quantity), 0.0)::float8 AS total_qty
-         FROM user_price_corpus
-         WHERE user_id = $1
-           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
-         GROUP BY source_sheet
-         ORDER BY total_qty DESC, sheet ASC",
+    // 1. Drawing-scoped imports. When the user has explicitly linked one
+    //    or more XLSX imports to this drawing, we restrict retrieval to
+    //    those rows — guarantees the AI output is 1:1 with the reference
+    //    offer the user wants to compare against.
+    let linked_imports: Vec<(Uuid,)> = sqlx::query_as(
+        "SELECT id FROM user_price_imports
+         WHERE user_id = $1 AND drawing_id = $2",
     )
     .bind(user_id)
+    .bind(drawing_id)
     .fetch_all(db)
     .await?;
+    let linked_import_ids: Vec<Uuid> = linked_imports.into_iter().map(|(id,)| id).collect();
+
+    // Sheet inventory inside whatever scope applies. We tally per-sheet
+    // priced quantity as a proxy for module size; the largest sheet is
+    // paired with structure_index 0 (the leftmost module by detector
+    // order), the next-largest with index 1, etc.
+    let sheets: Vec<(String, f64)> = if linked_import_ids.is_empty() {
+        sqlx::query_as(
+            "SELECT
+                COALESCE(source_sheet, '__null__') AS sheet,
+                COALESCE(SUM(quantity), 0.0)::float8 AS total_qty
+             FROM user_price_corpus
+             WHERE user_id = $1
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             GROUP BY source_sheet
+             ORDER BY total_qty DESC, sheet ASC",
+        )
+        .bind(user_id)
+        .fetch_all(db)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT
+                COALESCE(source_sheet, '__null__') AS sheet,
+                COALESCE(SUM(quantity), 0.0)::float8 AS total_qty
+             FROM user_price_corpus
+             WHERE user_id = $1
+               AND import_id = ANY($2::uuid[])
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             GROUP BY source_sheet
+             ORDER BY total_qty DESC, sheet ASC",
+        )
+        .bind(user_id)
+        .bind(&linked_import_ids)
+        .fetch_all(db)
+        .await?
+    };
 
     if sheets.len() == structure_count && structure_count > 0 {
-        // Sheet pinning path. Modules sorted left-to-right (small index =
-        // small bbox in detector order). Sheets sorted by total qty desc.
-        // We pair by sorted_index so largest module gets largest sheet — a
-        // size-aligned 1:1 mapping that mirrors the user's offer.
-        // Index inversion: structure_index 0 is leftmost module (smallest by
-        // canonical sort? not necessarily). For now, pair by direct index
-        // order (leftmost → biggest sheet). The user can rename modules if
-        // the pairing is off.
         let target_sheet = sheets
             .get(structure_index)
             .map(|(s, _)| s.clone())
             .unwrap_or_default();
-        return rag_items_from_sheet(db, user_id, &target_sheet).await;
+        return rag_items_from_sheet(db, user_id, &target_sheet, &linked_import_ids).await;
     }
 
-    // Fallback: per-category top-1 search across the whole corpus.
-    rag_items_from_categories(db, user_id, drawing_type).await
+    // Fallback: per-category top-1 search. When a drawing has linked
+    // imports we still restrict to those; otherwise the whole corpus.
+    rag_items_from_categories(db, user_id, drawing_type, &linked_import_ids).await
 }
 
 /// Emit one KSS line item per priced row in the matched sheet. Quantities
@@ -1679,6 +1709,7 @@ async fn rag_items_from_sheet(
     db: &sqlx::PgPool,
     user_id: Uuid,
     sheet: &str,
+    linked_import_ids: &[Uuid],
 ) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
     let rows: Vec<(
         Uuid,
@@ -1689,21 +1720,41 @@ async fn rag_items_from_sheet(
         f64,
         f64,
         f64,
-    )> = sqlx::query_as(
-        "SELECT id, sek_code, description, unit, quantity,
-                COALESCE(material_price_eur, 0)::float8,
-                COALESCE(labor_price_eur, 0)::float8,
-                COALESCE(total_unit_price_eur, 0)::float8
-         FROM user_price_corpus
-         WHERE user_id = $1
-           AND COALESCE(source_sheet, '__null__') = $2
-           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
-         ORDER BY source_row ASC NULLS LAST, created_at ASC",
-    )
-    .bind(user_id)
-    .bind(sheet)
-    .fetch_all(db)
-    .await?;
+    )> = if linked_import_ids.is_empty() {
+        sqlx::query_as(
+            "SELECT id, sek_code, description, unit, quantity,
+                    COALESCE(material_price_eur, 0)::float8,
+                    COALESCE(labor_price_eur, 0)::float8,
+                    COALESCE(total_unit_price_eur, 0)::float8
+             FROM user_price_corpus
+             WHERE user_id = $1
+               AND COALESCE(source_sheet, '__null__') = $2
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             ORDER BY source_row ASC NULLS LAST, created_at ASC",
+        )
+        .bind(user_id)
+        .bind(sheet)
+        .fetch_all(db)
+        .await?
+    } else {
+        sqlx::query_as(
+            "SELECT id, sek_code, description, unit, quantity,
+                    COALESCE(material_price_eur, 0)::float8,
+                    COALESCE(labor_price_eur, 0)::float8,
+                    COALESCE(total_unit_price_eur, 0)::float8
+             FROM user_price_corpus
+             WHERE user_id = $1
+               AND import_id = ANY($2::uuid[])
+               AND COALESCE(source_sheet, '__null__') = $3
+               AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+             ORDER BY source_row ASC NULLS LAST, created_at ASC",
+        )
+        .bind(user_id)
+        .bind(linked_import_ids)
+        .bind(sheet)
+        .fetch_all(db)
+        .await?
+    };
 
     let mut items = Vec::with_capacity(rows.len());
     for (idx, (_id, sek_code, description, unit, quantity, mat, lab, total_unit)) in
@@ -1746,8 +1797,9 @@ async fn rag_items_from_categories(
     db: &sqlx::PgPool,
     user_id: Uuid,
     drawing_type: kcc_core::drawing_type::DrawingType,
+    linked_import_ids: &[Uuid],
 ) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
-    use kcc_core::price_corpus::search::{search_corpus, SearchOptions};
+    use kcc_core::price_corpus::search::{search_corpus_scoped, SearchOptions};
 
     let opts = SearchOptions {
         min_similarity: 0.30,
@@ -1758,7 +1810,7 @@ async fn rag_items_from_categories(
     let mut seen_corpus_ids: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
     let mut item_no = 0usize;
     for query in rag_categories_for(drawing_type) {
-        let matches = search_corpus(db, user_id, query, opts).await?;
+        let matches = search_corpus_scoped(db, user_id, query, opts, linked_import_ids).await?;
         let Some(top) = matches.into_iter().next() else {
             continue;
         };

@@ -498,17 +498,84 @@ class ApiClient {
 
   // === Price corpus (self-hosted RAG) ===
 
-  async importPriceCorpus(file: File): Promise<{
-    import_id: string; filename: string; sheet_count: number;
-    row_count: number; skipped_count: number; deduped: boolean;
-  }> {
+  async importPriceCorpus(
+    file: File,
+    opts?: { drawingId?: string | null; onConflict?: 'warn' | 'add' | 'replace' | 'skip' },
+  ): Promise<
+    | {
+        kind: 'ok';
+        import_id: string;
+        filename: string;
+        sheet_count: number;
+        row_count: number;
+        skipped_count: number;
+        drawing_id: string | null;
+        deduped: boolean;
+        overlap_warnings?: Array<{
+          import_id: string;
+          filename: string;
+          drawing_id: string | null;
+          overlapping_rows: number;
+          total_rows: number;
+          overlap_pct: number;
+          imported_at: string;
+        }>;
+      }
+    | {
+        kind: 'conflict';
+        summary: string;
+        matches: Array<{
+          import_id: string;
+          filename: string;
+          drawing_id: string | null;
+          overlapping_rows: number;
+          total_rows: number;
+          overlap_pct: number;
+          imported_at: string;
+        }>;
+        options: string[];
+      }
+  > {
     const form = new FormData();
     form.append('file', file);
-    return this.request(`/price-corpus/import`, { method: 'POST', body: form });
+    const qs = new URLSearchParams();
+    if (opts?.drawingId) qs.set('drawing_id', opts.drawingId);
+    if (opts?.onConflict) qs.set('on_conflict', opts.onConflict);
+    const headers: Record<string, string> = {};
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+    const resp = await fetch(
+      `${API_BASE}/price-corpus/import${qs.toString() ? `?${qs}` : ''}`,
+      { method: 'POST', body: form, headers },
+    );
+    if (resp.status === 409) {
+      const body = await resp.json();
+      return { kind: 'conflict', ...body };
+    }
+    if (!resp.ok) {
+      await this.handleError(resp);
+    }
+    const json = await resp.json();
+    return { kind: 'ok', ...json };
+  }
+
+  async setImportLink(importId: string, drawingId: string | null): Promise<{ drawing_id: string | null }> {
+    return this.request(`/price-corpus/imports/${importId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ drawing_id: drawingId }),
+    });
   }
 
   async listCorpusImports(): Promise<{
-    imports: Array<{ id: string; filename: string; sheet_count: number; row_count: number; skipped_count: number; imported_at: string }>;
+    imports: Array<{
+      id: string;
+      filename: string;
+      sheet_count: number;
+      row_count: number;
+      skipped_count: number;
+      imported_at: string;
+      drawing_id: string | null;
+      drawing_filename: string | null;
+    }>;
     total_corpus_rows: number;
   }> {
     return this.request(`/price-corpus/imports`);
