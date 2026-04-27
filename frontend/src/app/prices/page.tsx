@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
-import type { ScrapedPriceItem, ScrapeSource, Drawing } from '@/types';
+import type { ScrapedPriceItem, ScrapeSource } from '@/types';
 import { PriceLibrarySection } from '@/components/prices/PriceLibrarySection';
 
 interface PriceListInfo {
