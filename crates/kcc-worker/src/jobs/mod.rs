@@ -36,6 +36,13 @@ pub struct QuantityScrapeJob {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSummaryJob {
+    pub job_id: Uuid,
+    pub drawing_id: Uuid,
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiKssJob {
     pub job_id: Uuid,
     pub drawing_id: Uuid,

@@ -202,6 +202,70 @@ impl OpenRouterClient {
         Ok(kss_response)
     }
 
+    /// Generic JSON-completion call. Returns the raw assistant content (after
+    /// stripping reasoning tags and markdown fences). Caller is responsible
+    /// for parsing and any schema enforcement. Used by callers that want a
+    /// custom response shape — the dedicated `generate_kss` should still be
+    /// used for the canonical KSS path.
+    pub async fn complete_json(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<String, AiError> {
+        let body = serde_json::json!({
+            "model": self.model,
+            "messages": [
+                { "role": "system", "content": system_prompt },
+                { "role": "user", "content": user_prompt }
+            ],
+            "response_format": { "type": "json_object" },
+            "temperature": 0.1,
+            "max_tokens": 4096
+        });
+
+        let resp = self
+            .http
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .header("HTTP-Referer", "https://kcc-automation.com")
+            .header("X-OpenRouter-Title", "KCC Automation")
+            .json(&body)
+            .send()
+            .await?;
+
+        let status = resp.status().as_u16();
+        if status != 200 {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(match status {
+                402 => AiError::InsufficientCredits,
+                429 => AiError::RateLimited,
+                408 => AiError::Timeout,
+                _ => AiError::ApiError { status, body },
+            });
+        }
+
+        let raw_body = resp
+            .text()
+            .await
+            .map_err(|e| AiError::ParseError(format!("Failed to read response body: {e}")))?;
+        let response_json: serde_json::Value = serde_json::from_str(&raw_body)
+            .map_err(|e| AiError::ParseError(format!("Response JSON parse error: {e}")))?;
+        let content = response_json
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .and_then(|c| c.get("message"))
+            .and_then(|m| m.get("content"))
+            .and_then(|c| c.as_str())
+            .ok_or_else(|| AiError::ParseError("No content in response".into()))?;
+
+        let stripped = strip_tag_block(content, "think");
+        let stripped = strip_tag_block(&stripped, "reasoning");
+        let stripped = strip_tag_block(&stripped, "reflection");
+        let json_str = strip_markdown_fences(&stripped).to_string();
+        Ok(json_str)
+    }
+
     /// Call OpenRouter with web search enabled for price research.
     /// Uses `:online` model suffix for real-time web grounding.
     pub async fn search_and_analyze(

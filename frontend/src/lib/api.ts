@@ -468,6 +468,34 @@ class ApiClient {
     });
   }
 
+  // === AI drawing summary (bilingual, redactable) ===
+
+  async getAiSummary(drawingId: string): Promise<{
+    summary_en: string | null;
+    summary_bg: string | null;
+    generated_at: string | null;
+    edited_at: string | null;
+    model: string | null;
+  }> {
+    return this.request(`/drawings/${drawingId}/ai-summary`);
+  }
+
+  async saveAiSummary(
+    drawingId: string,
+    payload: { summary_en?: string; summary_bg?: string },
+  ): Promise<{ saved: boolean }> {
+    return this.request(`/drawings/${drawingId}/ai-summary`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async regenerateAiSummary(drawingId: string): Promise<{ job_id: string }> {
+    return this.request(`/drawings/${drawingId}/ai-summary/regenerate`, {
+      method: 'POST',
+    });
+  }
+
   // === Price corpus (self-hosted RAG) ===
 
   async importPriceCorpus(file: File): Promise<{

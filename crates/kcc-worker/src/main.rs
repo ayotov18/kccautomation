@@ -1,6 +1,7 @@
 use sqlx::postgres::PgPoolOptions;
 
 mod ai_kss_pipeline;
+mod ai_summary_pipeline;
 mod analyze_pipeline;
 mod jobs;
 mod kss_pipeline;
@@ -10,7 +11,7 @@ mod pricing_defaults;
 mod quantity_scrape_pipeline;
 mod scrape_pipeline;
 
-use jobs::{AiKssJob, AnalyzeDrawingJob, DeepAnalyzeJob, GenerateKssJob, QuantityScrapeJob, ScrapeJob};
+use jobs::{AiKssJob, AiSummaryJob, AnalyzeDrawingJob, DeepAnalyzeJob, GenerateKssJob, QuantityScrapeJob, ScrapeJob};
 use pipeline::WorkerContext;
 
 #[tokio::main]
@@ -73,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
             .arg("kcc:scrape-jobs")
             .arg("kcc:quantity-scrape-jobs")
             .arg("kcc:ai-kss-jobs")
+            .arg("kcc:ai-summary-jobs")
             .arg(5)
             .query_async(&mut conn)
             .await?;
@@ -203,6 +205,30 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         Err(e) => tracing::error!(error = %e, "Failed to deserialize AI KSS job"),
+                    }
+                }
+                "kcc:ai-summary-jobs" => {
+                    match serde_json::from_str::<AiSummaryJob>(&job_data) {
+                        Ok(job) => {
+                            tracing::info!(job_id = %job.job_id, "Processing AI summary job");
+                            if let Err(e) = ai_summary_pipeline::process_ai_summary_job(
+                                job.clone(),
+                                &ctx,
+                            )
+                            .await
+                            {
+                                let err_msg = e.to_string();
+                                tracing::error!(job_id = %job.job_id, error = %err_msg, "AI summary job failed");
+                                let _ = sqlx::query(
+                                    "UPDATE jobs SET status = 'failed', error_message = $1 WHERE id = $2",
+                                )
+                                .bind(&err_msg)
+                                .bind(job.job_id)
+                                .execute(&ctx.db)
+                                .await;
+                            }
+                        }
+                        Err(e) => tracing::error!(error = %e, "Failed to deserialize AI summary job"),
                     }
                 }
                 _ => tracing::warn!(queue = %queue, "Unknown job queue"),

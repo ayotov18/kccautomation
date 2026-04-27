@@ -169,7 +169,7 @@ export function SuggestionsReviewer({
                   onClose();
                   onCommit();
                 }}
-                className="px-6 py-2.5 rounded-lg text-sm font-medium transition-colors bg-sky-500/90 hover:bg-sky-400 text-gray-900"
+                className="oe-btn-primary oe-btn-lg"
               >
                 Запази промените
               </button>

@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     extract::{Extension, Multipart, Path, State},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -25,6 +25,8 @@ pub fn drawing_routes() -> Router<AppState> {
         .route("/", get(list_drawings))
         .route("/{id}", get(get_drawing).delete(delete_drawing))
         .route("/{id}/summary", get(get_drawing_summary))
+        .route("/{id}/ai-summary", get(get_ai_summary).put(save_ai_summary))
+        .route("/{id}/ai-summary/regenerate", post(regenerate_ai_summary))
 }
 
 #[derive(Serialize)]
@@ -363,4 +365,114 @@ async fn get_drawing_summary(
         "analysis": analysis_summary,
         "kss": kss_status,
     })))
+}
+
+#[derive(serde::Deserialize)]
+struct SaveSummaryBody {
+    summary_en: Option<String>,
+    summary_bg: Option<String>,
+}
+
+/// Bilingual AI drawing summary — read.
+async fn get_ai_summary(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(drawing_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let row: Option<(
+        Option<String>,
+        Option<String>,
+        Option<chrono::DateTime<chrono::Utc>>,
+        Option<chrono::DateTime<chrono::Utc>>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT ai_summary_en, ai_summary_bg, ai_summary_generated_at,
+                ai_summary_edited_at, ai_summary_model
+         FROM drawings WHERE id = $1 AND user_id = $2",
+    )
+    .bind(drawing_id)
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+    let row = row.ok_or_else(|| ApiError::NotFound("Drawing not found".into()))?;
+    Ok(Json(serde_json::json!({
+        "summary_en": row.0,
+        "summary_bg": row.1,
+        "generated_at": row.2,
+        "edited_at": row.3,
+        "model": row.4,
+    })))
+}
+
+/// Save user-edited summary text (bilingual). Either field can be omitted —
+/// only the provided ones are written.
+async fn save_ai_summary(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(drawing_id): Path<Uuid>,
+    Json(body): Json<SaveSummaryBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    if body.summary_en.is_none() && body.summary_bg.is_none() {
+        return Err(ApiError::BadRequest(
+            "summary_en or summary_bg required".into(),
+        ));
+    }
+    let result = sqlx::query(
+        "UPDATE drawings
+         SET ai_summary_en = COALESCE($1, ai_summary_en),
+             ai_summary_bg = COALESCE($2, ai_summary_bg),
+             ai_summary_edited_at = now()
+         WHERE id = $3 AND user_id = $4",
+    )
+    .bind(body.summary_en.as_deref())
+    .bind(body.summary_bg.as_deref())
+    .bind(drawing_id)
+    .bind(user_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+    if result.rows_affected() == 0 {
+        return Err(ApiError::NotFound("Drawing not found".into()));
+    }
+    Ok(Json(serde_json::json!({ "saved": true })))
+}
+
+/// Enqueue an AI summary regeneration job. Idempotent — if a job is already
+/// queued for this drawing, returns the existing job_id. The worker writes
+/// directly back to drawings.ai_summary_* on completion.
+async fn regenerate_ai_summary(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(drawing_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let _: (Uuid,) = sqlx::query_as("SELECT id FROM drawings WHERE id = $1 AND user_id = $2")
+        .bind(drawing_id)
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("Drawing not found".into()))?;
+
+    let job_id = Uuid::new_v4();
+    sqlx::query("INSERT INTO jobs (id, drawing_id, status, progress) VALUES ($1, $2, 'queued', 0)")
+        .bind(job_id)
+        .bind(drawing_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    let job_data = serde_json::json!({
+        "job_id": job_id,
+        "drawing_id": drawing_id,
+        "user_id": user_id,
+    });
+    let mut conn = state.redis.lock().await;
+    redis::cmd("LPUSH")
+        .arg("kcc:ai-summary-jobs")
+        .arg(job_data.to_string())
+        .query_async::<()>(&mut *conn)
+        .await
+        .map_err(|e| ApiError::Internal(format!("Redis error: {e}")))?;
+
+    Ok(Json(serde_json::json!({ "job_id": job_id })))
 }

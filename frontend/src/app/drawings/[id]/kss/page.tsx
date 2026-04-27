@@ -362,7 +362,7 @@ export default function KssReportPage() {
       <div className="oe-fade-in">
 <div className="max-w-6xl mx-auto px-6 py-12 text-center">
           <p className="text-content-tertiary mb-4">KSS report not generated yet.</p>
-          <button onClick={() => router.push(`/drawings/${drawingId}`)} className="px-4 py-2 bg-surface-tertiary rounded text-sm">
+          <button onClick={() => router.push(`/drawings/${drawingId}`)} className="oe-btn-secondary">
             Back to Drawing
           </button>
         </div>
@@ -813,8 +813,11 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
               <td className="px-3 py-1.5"></td>
               <td className="px-3 py-1.5"></td>
               <td className="px-3 py-1.5 text-right">
-                <button onClick={handleAddSave} disabled={addingSaving || !newItem.description}
-                  className="text-xs px-2 py-1 bg-sky-500/90 hover:bg-sky-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-900 rounded">
+                <button
+                  onClick={handleAddSave}
+                  disabled={addingSaving || !newItem.description}
+                  className="oe-btn-primary oe-btn-sm"
+                >
                   {addingSaving ? '…' : 'Добави'}
                 </button>
               </td>

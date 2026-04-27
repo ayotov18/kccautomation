@@ -205,7 +205,7 @@ export default function PricesPage() {
               <button
                 onClick={handleScrape}
                 disabled={scraping}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded text-sm font-medium"
+                className="oe-btn-primary"
               >
                 {scraping ? `Scraping... ${scrapeProgress}%` : '+ Scrape New Prices'}
               </button>

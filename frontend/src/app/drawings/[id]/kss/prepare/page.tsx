@@ -107,14 +107,11 @@ export default function AiKssPrepare() {
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => router.push(`/drawings/${drawingId}`)}
-                className="px-3 py-1.5 text-sm rounded-lg bg-surface-tertiary hover:bg-gray-700"
+                className="oe-btn-secondary"
               >
                 Back to drawing
               </button>
-              <button
-                onClick={() => location.reload()}
-                className="px-3 py-1.5 text-sm rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-200"
-              >
+              <button onClick={() => location.reload()} className="oe-btn-primary">
                 Retry
               </button>
             </div>
@@ -172,7 +169,7 @@ export default function AiKssPrepare() {
             <button
               onClick={handleGenerate}
               disabled={generating || (mode !== 'rag' && approvedCount === 0)}
-              className="px-5 py-2.5 bg-sky-500/90 hover:bg-sky-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-900 rounded-lg text-sm font-medium transition-colors"
+              className="oe-btn-primary oe-btn-lg"
             >
               {generating
                 ? 'Generating...'
