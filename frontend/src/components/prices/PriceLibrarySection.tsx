@@ -177,6 +177,56 @@ export function PriceLibrarySection() {
     }
   };
 
+  // Inline edit handlers (debounced auto-save per cell on blur).
+  const handleEdit = async (
+    rowId: string,
+    field:
+      | 'description'
+      | 'unit'
+      | 'quantity'
+      | 'material_price_eur'
+      | 'labor_price_eur'
+      | 'sek_code',
+    value: string | number,
+  ) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId
+          ? {
+              ...r,
+              [field]: value,
+              total_unit_price_eur:
+                field === 'material_price_eur' || field === 'labor_price_eur'
+                  ? (field === 'material_price_eur'
+                      ? Number(value)
+                      : r.material_price_eur ?? 0) +
+                    (field === 'labor_price_eur'
+                      ? Number(value)
+                      : r.labor_price_eur ?? 0)
+                  : r.total_unit_price_eur,
+            }
+          : r,
+      ),
+    );
+    try {
+      await api.updateCorpusRow(rowId, { [field]: value });
+      await fetchImports(); // row counts may not change but keep summary fresh
+    } catch {
+      /* swallow — UI already optimistic */
+    }
+  };
+
+  const handleDeleteRow = async (rowId: string) => {
+    if (!confirm('Delete this row?')) return;
+    try {
+      await api.deleteCorpusRow(rowId);
+      setRows((prev) => prev.filter((r) => r.id !== rowId));
+      await fetchImports();
+    } catch {
+      /* swallow */
+    }
+  };
+
   return (
     <section className="oe-card p-5 space-y-4">
       <div className="flex items-baseline justify-between gap-4 flex-wrap">
@@ -186,14 +236,14 @@ export function PriceLibrarySection() {
             <span className="font-numeric text-content-secondary">{totalRows}</span> priced
             rows from <span className="font-numeric">{imports.length}</span> uploaded
             {imports.length === 1 ? ' offer' : ' offers'}. Link each XLSX to a drawing
-            for 1:1 RAG generation.
+            for 1:1 RAG generation. Click any cell in the browser to edit.
           </p>
         </div>
         <button
           onClick={() => setShowBrowser((v) => !v)}
           className="oe-btn-ghost oe-btn-sm"
         >
-          {showBrowser ? 'Hide' : 'Browse'} contents
+          {showBrowser ? 'Hide' : 'Browse & edit'} prices
         </button>
       </div>
 
@@ -321,10 +371,12 @@ export function PriceLibrarySection() {
                   <tr>
                     <th className="px-3 py-2">Description</th>
                     <th className="px-3 py-2 w-14">Unit</th>
-                    <th className="px-3 py-2 w-24 text-right">Material</th>
-                    <th className="px-3 py-2 w-24 text-right">Labour</th>
-                    <th className="px-3 py-2 w-24 text-right">Total</th>
-                    <th className="px-3 py-2 w-32 text-content-tertiary">Sheet</th>
+                    <th className="px-3 py-2 w-20 text-right">Qty</th>
+                    <th className="px-3 py-2 w-24 text-right">Material €</th>
+                    <th className="px-3 py-2 w-24 text-right">Labour €</th>
+                    <th className="px-3 py-2 w-24 text-right">Total €</th>
+                    <th className="px-3 py-2 w-24 text-content-tertiary">Sheet</th>
+                    <th className="px-3 py-2 w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -333,20 +385,38 @@ export function PriceLibrarySection() {
                       key={r.id}
                       className="border-t border-border-light/30 hover:bg-surface-secondary/30"
                     >
-                      <td
-                        className="px-3 py-1.5 text-content-secondary truncate max-w-md"
-                        title={r.description}
-                      >
-                        {r.description}
+                      <td className="px-3 py-1.5 text-content-secondary max-w-md">
+                        <EditableCell
+                          value={r.description}
+                          onCommit={(v) => handleEdit(r.id, 'description', v)}
+                        />
                       </td>
-                      <td className="px-3 py-1.5 text-xs">{r.unit}</td>
+                      <td className="px-3 py-1.5 text-xs">
+                        <EditableCell
+                          value={r.unit}
+                          onCommit={(v) => handleEdit(r.id, 'unit', v)}
+                          width={48}
+                        />
+                      </td>
                       <td className="px-3 py-1.5 text-right font-numeric text-xs">
-                        {r.material_price_eur?.toFixed(2) ?? '—'}
+                        <EditableNumber
+                          value={r.quantity}
+                          onCommit={(v) => handleEdit(r.id, 'quantity', v)}
+                        />
                       </td>
                       <td className="px-3 py-1.5 text-right font-numeric text-xs">
-                        {r.labor_price_eur?.toFixed(2) ?? '—'}
+                        <EditableNumber
+                          value={r.material_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
+                        />
                       </td>
-                      <td className="px-3 py-1.5 text-right font-numeric text-xs font-medium">
+                      <td className="px-3 py-1.5 text-right font-numeric text-xs">
+                        <EditableNumber
+                          value={r.labor_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-numeric text-xs font-medium text-content-primary">
                         {r.total_unit_price_eur?.toFixed(2) ?? '—'}
                       </td>
                       <td
@@ -354,6 +424,15 @@ export function PriceLibrarySection() {
                         title={r.source_sheet ?? ''}
                       >
                         {r.source_sheet ?? '—'}
+                      </td>
+                      <td className="px-3 py-1.5 text-right">
+                        <button
+                          onClick={() => handleDeleteRow(r.id)}
+                          className="text-[11px] text-red-400 hover:text-red-300"
+                          title="Delete row"
+                        >
+                          ✕
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -408,5 +487,113 @@ export function PriceLibrarySection() {
         </div>
       )}
     </section>
+  );
+}
+
+// Inline-editable text cell. Click to edit, Enter / blur to commit, Esc to cancel.
+function EditableCell({
+  value,
+  onCommit,
+  width,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  width?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="text-left w-full hover:bg-surface-secondary/40 rounded px-1 -mx-1 py-0.5 cursor-text"
+        title="Click to edit"
+      >
+        {value || <span className="text-content-tertiary italic">empty</span>}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        setEditing(false);
+        if (draft !== value) onCommit(draft);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      style={width ? { width } : undefined}
+      className="bg-surface-tertiary border border-border-light rounded px-1.5 py-0.5 text-sm w-full outline-none focus:border-content-tertiary"
+    />
+  );
+}
+
+// Inline-editable numeric cell. Empty string commits as 0.
+function EditableNumber({
+  value,
+  onCommit,
+}: {
+  value: number | null;
+  onCommit: (v: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value === null ? '' : String(value));
+
+  useEffect(() => {
+    setDraft(value === null ? '' : String(value));
+  }, [value]);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="text-right w-full hover:bg-surface-secondary/40 rounded px-1 -mx-1 py-0.5 cursor-text font-numeric"
+        title="Click to edit"
+      >
+        {value === null ? <span className="text-content-tertiary">—</span> : value.toFixed(2)}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="number"
+      step="0.01"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        setEditing(false);
+        const parsed = parseFloat(draft);
+        const next = Number.isFinite(parsed) ? parsed : 0;
+        if (next !== value) onCommit(next);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          setDraft(value === null ? '' : String(value));
+          setEditing(false);
+        }
+      }}
+      className="bg-surface-tertiary border border-border-light rounded px-1.5 py-0.5 text-sm w-20 text-right outline-none focus:border-content-tertiary font-numeric"
+    />
   );
 }

@@ -185,6 +185,7 @@ export interface AuthResponse {
 export interface UploadResponse {
   drawing_id: string;
   job_id: string;
+  duplicate?: boolean;
 }
 
 export interface ApiError {

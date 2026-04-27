@@ -565,6 +565,27 @@ class ApiClient {
     });
   }
 
+  async updateCorpusRow(
+    rowId: string,
+    patch: {
+      description?: string;
+      unit?: string;
+      quantity?: number;
+      material_price_eur?: number;
+      labor_price_eur?: number;
+      sek_code?: string;
+    },
+  ): Promise<{ ok: boolean }> {
+    return this.request(`/price-corpus/${rowId}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  async deleteCorpusRow(rowId: string): Promise<{ deleted: boolean }> {
+    return this.request(`/price-corpus/${rowId}`, { method: 'DELETE' });
+  }
+
   async listCorpusImports(): Promise<{
     imports: Array<{
       id: string;
@@ -636,48 +657,7 @@ class ApiClient {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ERP: Projects
-  // ═══════════════════════════════════════════════════════════
-
-  async listProjects(): Promise<Array<{ id: string; name: string; region: string; status: string; created_at: string }>> {
-    return this.request('/projects');
-  }
-
-  async createProject(data: { name: string; description?: string; region?: string; currency?: string }): Promise<{ id: string }> {
-    return this.request('/projects', { method: 'POST', body: JSON.stringify(data) });
-  }
-
-  async getProject(id: string): Promise<Record<string, unknown>> {
-    return this.request(`/projects/${id}`);
-  }
-
-  async updateProject(id: string, data: Record<string, unknown>): Promise<void> {
-    return this.request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-  }
-
-  async deleteProject(id: string): Promise<void> {
-    return this.request(`/projects/${id}`, { method: 'DELETE' });
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // ERP: Assemblies
-  // ═══════════════════════════════════════════════════════════
-
-  async listAssemblies(projectId?: string): Promise<Array<Record<string, unknown>>> {
-    const url = projectId ? `/assemblies?project_id=${projectId}` : '/assemblies';
-    return this.request(url);
-  }
-
-  async createAssembly(data: Record<string, unknown>): Promise<{ id: string }> {
-    return this.request('/assemblies', { method: 'POST', body: JSON.stringify(data) });
-  }
-
-  async getAssembly(id: string): Promise<Record<string, unknown>> {
-    return this.request(`/assemblies/${id}`);
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // ERP: Cost Model (EVM)
+  // ERP: Cost Model (EVM) — kept for legacy reads, no UI surface
   // ═══════════════════════════════════════════════════════════
 
   async getEvm(projectId: string): Promise<Record<string, unknown>> {

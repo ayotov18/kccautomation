@@ -30,46 +30,48 @@ const BUILDING_TYPES: { key: string; label: string }[] = [
   { key: 'road', label: 'Път / инфраструктура' },
 ];
 
-export default function QuantitiesPage() {
+// Quantity norms — embedded inside /prices. Same 4 tabs (norms,
+// distributions, sources, history) but rendered without the page chrome
+// (no outer max-w/padding, no h1) so it slots into PricesPage.
+export function QuantityNormsSection() {
   const [tab, setTab] = useState<Tab>('norms');
 
   return (
-    <div className="oe-fade-in">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-content-primary">Количества & Норми</h1>
-          <p className="text-sm text-content-secondary mt-1">
-            Нормативи за разход на труд и материали на единица работа. Подавани на AI като anchor, за да не &bdquo;халюцинира&ldquo; количества.
-          </p>
-        </div>
-
-        <div className="flex gap-1 p-1 bg-surface-tertiary/40 rounded-xl w-fit">
-          {([
-            ['norms', 'Норми'],
-            ['distributions', 'Разпределения'],
-            ['sources', 'Източници'],
-            ['history', 'История'],
-          ] as [Tab, string][]).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-4 py-1.5 text-sm rounded-lg transition-all ${
-                tab === key
-                  ? 'bg-surface-elevated text-content-primary shadow-sm'
-                  : 'text-content-secondary hover:text-content-primary'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'norms' && <NormsTab />}
-        {tab === 'distributions' && <DistributionsTab />}
-        {tab === 'sources' && <SourcesTab />}
-        {tab === 'history' && <HistoryTab />}
+    <section className="oe-card p-5 space-y-4">
+      <div>
+        <h2 className="text-base font-medium text-content-primary">Quantity norms</h2>
+        <p className="mt-1 text-[12.5px] text-content-tertiary">
+          Нормативи за разход на труд и материали на единица работа. Подавани на AI
+          като anchor, за да не &bdquo;халюцинира&ldquo; количества.
+        </p>
       </div>
-    </div>
+
+      <div className="flex gap-1 p-1 bg-surface-tertiary/40 rounded-xl w-fit">
+        {([
+          ['norms', 'Норми'],
+          ['distributions', 'Разпределения'],
+          ['sources', 'Източници'],
+          ['history', 'История'],
+        ] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-1.5 text-sm rounded-lg transition-all ${
+              tab === key
+                ? 'bg-surface-elevated text-content-primary shadow-sm'
+                : 'text-content-secondary hover:text-content-primary'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'norms' && <NormsTab />}
+      {tab === 'distributions' && <DistributionsTab />}
+      {tab === 'sources' && <SourcesTab />}
+      {tab === 'history' && <HistoryTab />}
+    </section>
   );
 }
 

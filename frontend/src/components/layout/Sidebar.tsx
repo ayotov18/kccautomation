@@ -6,10 +6,6 @@ import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard,
-  FolderOpen,
-  Layers,
-  ShieldCheck,
-  FileText,
   FileSpreadsheet,
   FolderArchive,
   Tag,
@@ -17,7 +13,6 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
-  BarChart3,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -50,30 +45,16 @@ interface NavGroup {
  * "Upload Drawing" is no longer a peer entry — it becomes an action inside
  * the Drawings list page.
  */
+// Three top-level destinations. Anything else is reachable via a deep-link
+// from one of these — the sidebar stays small on purpose.
 const navGroups: NavGroup[] = [
   {
-    title: 'Work',
+    title: 'Workspace',
     items: [
       { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={16} strokeWidth={1.75} /> },
-      { label: 'Drawings', path: '/drawings', icon: <FileText size={16} strokeWidth={1.75} /> },
-      { label: 'Projects', path: '/projects', icon: <FolderOpen size={16} strokeWidth={1.75} /> },
       { label: 'Files', path: '/files', icon: <FolderArchive size={16} strokeWidth={1.75} /> },
-    ],
-  },
-  {
-    title: 'Reports',
-    items: [
-      { label: 'КСС (Bills of Quantities)', path: '/reports/kss', icon: <FileSpreadsheet size={16} strokeWidth={1.75} /> },
-      { label: 'Validation', path: '/validation', icon: <ShieldCheck size={16} strokeWidth={1.75} /> },
-    ],
-  },
-  {
-    title: 'Data',
-    items: [
-      { label: 'Prices & Sources', path: '/prices', icon: <Tag size={16} strokeWidth={1.75} /> },
-      { label: 'Assemblies', path: '/assemblies', icon: <Layers size={16} strokeWidth={1.75} /> },
-      { label: 'Documents (CDE)', path: '/cde', icon: <FolderArchive size={16} strokeWidth={1.75} /> },
-      { label: 'DRM Learning', path: '/drm-stats', icon: <BarChart3 size={16} strokeWidth={1.75} /> },
+      { label: 'Reports', path: '/reports/kss', icon: <FileSpreadsheet size={16} strokeWidth={1.75} /> },
+      { label: 'Prices & Data', path: '/prices', icon: <Tag size={16} strokeWidth={1.75} /> },
     ],
   },
 ];

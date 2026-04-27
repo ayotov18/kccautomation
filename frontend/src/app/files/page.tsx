@@ -3,17 +3,17 @@
 /**
  * Unified file manager.
  *
- * One screen for everything the user has uploaded or generated:
+ * One screen for everything the user has uploaded:
  *   - Drawings (DWG/DXF source files)
- *   - KSS reports (Excel exports)
  *   - Price library imports (XLSX offers, drawing-linked when applicable)
  *
- * Eliminates the "where is my file?" hunt across /drawings, /reports, and
- * /prices. Kind filter switches the view; everything is one searchable
- * table with consistent actions.
+ * Eliminates the "where is my file?" hunt — drawings, projects, and offers
+ * all live here. Kind-filter pills switch the view; everything is one
+ * searchable table with consistent actions and inline upload buttons.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { Drawing } from '@/types';
@@ -33,6 +33,7 @@ interface UnifiedFileRow {
 }
 
 export default function FilesPage() {
+  const router = useRouter();
   const [kind, setKind] = useState<FileKind>('all');
   const [search, setSearch] = useState('');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -48,17 +49,65 @@ export default function FilesPage() {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingKind, setUploadingKind] = useState<'drawing' | 'offer' | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const drawingInputRef = useRef<HTMLInputElement | null>(null);
+  const offerInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    void Promise.all([
+  const refresh = async () => {
+    const [d, i] = await Promise.all([
       api.listDrawings().catch(() => [] as Drawing[]),
       api.listCorpusImports().catch(() => ({ imports: [], total_corpus_rows: 0 })),
-    ]).then(([d, i]) => {
-      setDrawings(d);
-      setImports(i.imports);
-      setLoading(false);
-    });
+    ]);
+    setDrawings(d);
+    setImports(i.imports);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void refresh();
   }, []);
+
+  const handleDrawingUpload = async (file: File) => {
+    setUploadingKind('drawing');
+    setUploadMsg(null);
+    try {
+      const result = await api.uploadDrawing(file);
+      setUploadMsg(
+        result.duplicate
+          ? `"${file.name}" already uploaded.`
+          : `Uploaded "${file.name}" — analyzing now.`,
+      );
+      await refresh();
+      setTimeout(() => router.push(`/drawings/${result.drawing_id}`), 800);
+    } catch (err) {
+      setUploadMsg(`Failed: ${err instanceof Error ? err.message : 'Upload failed'}`);
+    }
+    setUploadingKind(null);
+  };
+
+  const handleOfferUpload = async (file: File) => {
+    setUploadingKind('offer');
+    setUploadMsg(null);
+    try {
+      const result = await api.importPriceCorpus(file, { onConflict: 'add' });
+      if (result.kind === 'conflict') {
+        setUploadMsg(
+          `Possible duplicate — open Prices & Data to choose Skip / Replace / Add.`,
+        );
+      } else {
+        setUploadMsg(
+          result.deduped
+            ? `"${file.name}" already imported (${result.row_count} rows reused).`
+            : `Imported ${result.row_count} priced rows from "${file.name}".`,
+        );
+        await refresh();
+      }
+    } catch (err) {
+      setUploadMsg(`Failed: ${err instanceof Error ? err.message : 'Upload failed'}`);
+    }
+    setUploadingKind(null);
+  };
 
   const rows: UnifiedFileRow[] = useMemo(() => {
     const drawingRows: UnifiedFileRow[] = drawings.map((d) => ({
@@ -119,12 +168,66 @@ export default function FilesPage() {
   return (
     <div className="oe-fade-in">
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-content-primary">Files</h1>
-          <p className="mt-1 text-[12.5px] text-content-tertiary">
-            Drawings, KSS reports, and uploaded offers — all in one place.
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-semibold tracking-tight text-content-primary">
+              Files
+            </h1>
+            <p className="mt-1 text-[12.5px] text-content-tertiary">
+              Drawings and uploaded offers — all in one place. Upload anything from here.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => drawingInputRef.current?.click()}
+              disabled={uploadingKind !== null}
+              className="oe-btn-primary"
+            >
+              {uploadingKind === 'drawing' ? 'Uploading…' : 'Upload drawing'}
+            </button>
+            <input
+              ref={drawingInputRef}
+              type="file"
+              accept=".dxf,.dwg,application/dxf,application/octet-stream"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleDrawingUpload(f);
+                e.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => offerInputRef.current?.click()}
+              disabled={uploadingKind !== null}
+              className="oe-btn-secondary"
+            >
+              {uploadingKind === 'offer' ? 'Uploading…' : 'Upload offer'}
+            </button>
+            <input
+              ref={offerInputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleOfferUpload(f);
+                e.target.value = '';
+              }}
+            />
+          </div>
         </div>
+
+        {uploadMsg && (
+          <div
+            className={`text-xs px-3 py-2 rounded-lg ${
+              uploadMsg.startsWith('Failed')
+                ? 'bg-red-900/30 text-red-300'
+                : 'bg-emerald-900/30 text-emerald-300'
+            }`}
+          >
+            {uploadMsg}
+          </div>
+        )}
 
         {/* Filter pills + search */}
         <div className="oe-card p-3 flex items-center gap-3 flex-wrap">
@@ -174,14 +277,9 @@ export default function FilesPage() {
                   : `No ${kind === 'drawing' ? 'drawings' : 'offers'} yet.`}
               </p>
               {kind === 'all' && (
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <Link href="/drawings/upload" className="oe-btn-primary oe-btn-sm">
-                    Upload drawing
-                  </Link>
-                  <Link href="/prices" className="oe-btn-secondary oe-btn-sm">
-                    Upload offer
-                  </Link>
-                </div>
+                <p className="text-[11px] text-content-tertiary/70 mt-2">
+                  Use the Upload buttons above.
+                </p>
               )}
             </div>
           ) : (

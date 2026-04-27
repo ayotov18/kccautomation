@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import type { ScrapedPriceItem, ScrapeSource } from '@/types';
 import { PriceLibrarySection } from '@/components/prices/PriceLibrarySection';
+import { QuantityNormsSection } from '@/components/prices/QuantityNormsSection';
 
 interface PriceListInfo {
   id: string;
@@ -206,6 +207,10 @@ export default function PricesPage() {
         {/* My Price Library — XLSX offers, drawing-linked. The RAG source
             of truth. Lives here so users don't have to bounce between pages. */}
         <PriceLibrarySection />
+
+        {/* Quantity norms — formerly /data/quantities. Same 4 tabs, embedded
+            so the navbar stays small. */}
+        <QuantityNormsSection />
 
         {/* My Price Lists */}
         <section className="oe-card p-6">

@@ -12,13 +12,8 @@ import {
   ArrowUp,
   FileSpreadsheet,
   FileText,
-  FolderOpen,
-  Layers,
   LayoutDashboard,
-  Scale,
-  ShieldCheck,
   Tag,
-  BarChart3,
   FolderArchive,
   Search,
   Settings,
@@ -30,7 +25,7 @@ import { clsx } from 'clsx';
 import { api } from '@/lib/api';
 import type { Drawing } from '@/types';
 
-type Group = 'Работа' | 'Отчети' | 'Данни';
+type Group = 'Работа' | 'Настройки';
 
 interface Route {
   id: string;
@@ -53,18 +48,11 @@ interface ActionCmd {
 
 const ROUTES: Route[] = [
   { id: 'dashboard', label: 'Dashboard', labelBg: 'Табло', path: '/dashboard', group: 'Работа', icon: <LayoutDashboard size={14} />, keywords: ['начало', 'home', 'overview'] },
-  { id: 'drawings', label: 'Drawings', labelBg: 'Чертежи', path: '/drawings', group: 'Работа', icon: <FileText size={14} />, keywords: ['dwg', 'dxf', 'cad'] },
-  { id: 'projects', label: 'Projects', labelBg: 'Проекти', path: '/projects', group: 'Работа', icon: <FolderOpen size={14} />, keywords: ['проект'] },
-  { id: 'files', label: 'Files', labelBg: 'Файлове', path: '/files', group: 'Работа', icon: <FolderArchive size={14} />, keywords: ['files', 'uploads', 'reports', 'offers', 'documents'] },
-  { id: 'kss', label: 'КСС (Bills of Quantities)', labelBg: 'КСС отчети', path: '/drawings', group: 'Отчети', icon: <FileSpreadsheet size={14} />, keywords: ['количествено', 'стойностна', 'сметка', 'boq', 'bills'] },
-  { id: 'validation', label: 'Validation', labelBg: 'Валидация', path: '/validation', group: 'Отчети', icon: <ShieldCheck size={14} />, keywords: ['проверка'] },
-  { id: 'prices', label: 'Prices & Sources', labelBg: 'Цени и източници', path: '/prices', group: 'Данни', icon: <Tag size={14} />, keywords: ['цени', 'market', 'database', 'library', 'offer', 'xlsx', 'csv'] },
-  { id: 'assemblies', label: 'Assemblies', labelBg: 'Сглобки', path: '/assemblies', group: 'Данни', icon: <Layers size={14} />, keywords: ['assembly'] },
-  { id: 'quantities', label: 'Quantity Norms', labelBg: 'Количества & Норми', path: '/data/quantities', group: 'Данни', icon: <Scale size={14} />, keywords: ['норми', 'разпределения', 'количества', 'usn', 'усн', 'атс', 'consumption', 'quantity', 'distributions'] },
-  { id: 'cde', label: 'Documents (CDE)', labelBg: 'Документи', path: '/cde', group: 'Данни', icon: <FolderArchive size={14} />, keywords: ['documents', 'files'] },
-  { id: 'drm', label: 'DRM Learning', labelBg: 'DRM статистика', path: '/drm-stats', group: 'Данни', icon: <BarChart3 size={14} />, keywords: ['drm', 'learning', 'ai'] },
-  { id: 'pricing', label: 'Pricing Defaults', labelBg: 'Ценови настройки', path: '/settings/pricing', group: 'Данни', icon: <Tag size={14} />, keywords: ['prices', 'ддс', 'vat', 'печалба', 'непредвидени', 'труд', 'ставки', 'eur', '€'] },
-  { id: 'settings', label: 'Settings', labelBg: 'Настройки', path: '/settings', group: 'Данни', icon: <Settings size={14} />, keywords: ['config', 'настройки'] },
+  { id: 'files', label: 'Files', labelBg: 'Файлове', path: '/files', group: 'Работа', icon: <FolderArchive size={14} />, keywords: ['files', 'uploads', 'drawings', 'projects', 'offers', 'documents', 'dwg', 'dxf'] },
+  { id: 'reports', label: 'Reports', labelBg: 'Отчети', path: '/reports/kss', group: 'Работа', icon: <FileSpreadsheet size={14} />, keywords: ['кcс', 'kss', 'количествено', 'стойностна', 'сметка', 'boq', 'bills'] },
+  { id: 'prices', label: 'Prices & Data', labelBg: 'Цени и данни', path: '/prices', group: 'Работа', icon: <Tag size={14} />, keywords: ['цени', 'market', 'database', 'library', 'offer', 'xlsx', 'csv', 'норми', 'количества'] },
+  { id: 'pricing', label: 'Pricing Defaults', labelBg: 'Ценови настройки', path: '/settings/pricing', group: 'Настройки', icon: <Tag size={14} />, keywords: ['prices', 'ддс', 'vat', 'печалба', 'непредвидени', 'труд', 'ставки', 'eur', '€'] },
+  { id: 'settings', label: 'Settings', labelBg: 'Настройки', path: '/settings', group: 'Настройки', icon: <Settings size={14} />, keywords: ['config', 'настройки'] },
 ];
 
 /** Shimmer hints are the exact routes of the old navbar — gives discoverability. */
@@ -333,7 +321,7 @@ export function FloatingCommandBar() {
       <div className="kcc-floating-surface kcc-floating-panel px-3 py-2.5">
         {/* Top row: group filter chips */}
         <div className="flex items-center gap-1.5 mb-2 px-1">
-          {(['Работа', 'Отчети', 'Данни'] as Group[]).map((g) => (
+          {(['Работа', 'Настройки'] as Group[]).map((g) => (
             <button
               key={g}
               type="button"

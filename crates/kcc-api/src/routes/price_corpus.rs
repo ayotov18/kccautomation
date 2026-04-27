@@ -24,6 +24,10 @@ pub fn price_corpus_routes() -> Router<AppState> {
             "/price-corpus/imports/{import_id}",
             delete(delete_import).put(update_import_link),
         )
+        .route(
+            "/price-corpus/{row_id}",
+            axum::routing::put(update_corpus_row).delete(delete_corpus_row),
+        )
 }
 
 #[derive(Serialize)]
@@ -536,4 +540,79 @@ async fn update_import_link(
         return Err(ApiError::NotFound("Import not found".into()));
     }
     Ok(Json(serde_json::json!({ "drawing_id": body.drawing_id })))
+}
+
+#[derive(Deserialize)]
+struct UpdateCorpusRowBody {
+    description: Option<String>,
+    unit: Option<String>,
+    quantity: Option<f64>,
+    material_price_eur: Option<f64>,
+    labor_price_eur: Option<f64>,
+    sek_code: Option<String>,
+}
+
+/// Inline-edit a single corpus row. Sets total_unit_price_eur from
+/// material+labor when either is provided.
+async fn update_corpus_row(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(row_id): Path<Uuid>,
+    Json(body): Json<UpdateCorpusRowBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let new_total: Option<f64> = match (body.material_price_eur, body.labor_price_eur) {
+        (Some(m), Some(l)) => Some(m + l),
+        _ => None,
+    };
+
+    let result = sqlx::query(
+        "UPDATE user_price_corpus SET
+            description           = COALESCE($1, description),
+            unit                  = COALESCE($2, unit),
+            quantity              = COALESCE($3, quantity),
+            material_price_eur    = COALESCE($4, material_price_eur),
+            labor_price_eur       = COALESCE($5, labor_price_eur),
+            total_unit_price_eur  = COALESCE($6,
+                                              COALESCE($4, material_price_eur)
+                                              + COALESCE($5, labor_price_eur),
+                                              total_unit_price_eur),
+            sek_code              = COALESCE($7, sek_code)
+         WHERE id = $8 AND user_id = $9",
+    )
+    .bind(body.description.as_deref())
+    .bind(body.unit.as_deref())
+    .bind(body.quantity)
+    .bind(body.material_price_eur)
+    .bind(body.labor_price_eur)
+    .bind(new_total)
+    .bind(body.sek_code.as_deref())
+    .bind(row_id)
+    .bind(user_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    if result.rows_affected() == 0 {
+        return Err(ApiError::NotFound("Corpus row not found".into()));
+    }
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn delete_corpus_row(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(row_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let result = sqlx::query(
+        "DELETE FROM user_price_corpus WHERE id = $1 AND user_id = $2",
+    )
+    .bind(row_id)
+    .bind(user_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+    if result.rows_affected() == 0 {
+        return Err(ApiError::NotFound("Corpus row not found".into()));
+    }
+    Ok(Json(serde_json::json!({ "deleted": true })))
 }
