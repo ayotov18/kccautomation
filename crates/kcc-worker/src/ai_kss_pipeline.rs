@@ -1641,7 +1641,12 @@ async fn generate_rag_items_for_structure(
         if !seen_corpus_ids.insert(top.id) {
             continue;
         }
-        let qty = 0.0; // forces user to fill in quantity per the new drawing
+        // Use the corpus row's quantity as the starting point. The user
+        // uploaded an offer they actually shipped to a similar module, so
+        // its quantity is far more useful than a zero. They can adjust in
+        // the KSS UI; needs_review stays true so the row is flagged.
+        // Fall back to 1.0 when the corpus carries no quantity.
+        let qty = top.quantity.filter(|q| *q > 0.0).unwrap_or(1.0);
         let total = top.total_unit_price_lv * qty;
         let sek_code = top
             .sek_code
@@ -1661,8 +1666,10 @@ async fn generate_rag_items_for_structure(
             total_price: total,
             confidence: top.similarity,
             reasoning: format!(
-                "Matched corpus row (similarity {:.2}) — quantity needs to be set for this drawing.",
-                top.similarity
+                "Matched corpus row '{}' (similarity {:.2}, qty={:.2} from offer). Adjust qty if the new module differs.",
+                top.source_sheet.as_deref().unwrap_or("?"),
+                top.similarity,
+                qty
             ),
             provenance: "rag".to_string(),
             source_layer: None,

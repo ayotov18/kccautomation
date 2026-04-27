@@ -18,6 +18,7 @@ pub struct CorpusMatch {
     pub sek_code: Option<String>,
     pub description: String,
     pub unit: String,
+    pub quantity: Option<f64>,
     pub material_price_lv: f64,
     pub labor_price_lv: f64,
     pub total_unit_price_lv: f64,
@@ -61,9 +62,12 @@ pub async fn search_corpus(
     // We use plainto_tsquery on the 'simple' config to match the trigger.
     // The combined score lets ts_rank break ties when several rows have
     // the same trigram similarity.
+    // Filter out unpriced rows entirely — they pollute search results because
+    // trigram match treats them the same as priced rows even though they're
+    // useless to RAG (a row with mat=0 lab=0 contributes no price signal).
     let rows = sqlx::query(
         r#"
-        SELECT id, sek_code, description, unit,
+        SELECT id, sek_code, description, unit, quantity,
                COALESCE(material_price_lv, 0.0)   AS material_price_lv,
                COALESCE(labor_price_lv, 0.0)      AS labor_price_lv,
                COALESCE(total_unit_price_lv, 0.0) AS total_unit_price_lv,
@@ -73,6 +77,7 @@ pub async fn search_corpus(
           FROM user_price_corpus
          WHERE user_id = $1
            AND similarity(description, $2) >= $3
+           AND (COALESCE(material_price_lv, 0) + COALESCE(labor_price_lv, 0)) > 0
          ORDER BY (similarity(description, $2) * 0.7
                   + ts_rank(description_tsv, plainto_tsquery('simple', $2)) * 0.3) DESC
          LIMIT $4
@@ -92,6 +97,7 @@ pub async fn search_corpus(
             sek_code: r.try_get("sek_code").ok(),
             description: r.try_get("description")?,
             unit: r.try_get("unit")?,
+            quantity: r.try_get("quantity").ok(),
             material_price_lv: r.try_get("material_price_lv")?,
             labor_price_lv: r.try_get("labor_price_lv")?,
             total_unit_price_lv: r.try_get("total_unit_price_lv")?,

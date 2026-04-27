@@ -136,6 +136,17 @@ fn parse_sheet(range: &Range<Data>, sheet_name: &str) -> ParsedOffer {
             continue;
         }
 
+        // RAG only returns useful answers when the row carries an actual
+        // price. Skip unpriced rows — they're typically category placeholders
+        // ("Каменна вата вътр. стени" with blank prices) that the offer
+        // engineer left for hand-pricing in a sister sheet. They pollute
+        // search results because trigram match doesn't know "no price" is
+        // worse than "any price".
+        if mat_unit <= 0.0 && lab_unit <= 0.0 && total_row <= 0.0 {
+            out.skipped_rows += 1;
+            continue;
+        }
+
         // Total UNIT price = mat_unit + lab_unit. The "общо" column in the
         // offer is total*qty, not unit total — we keep both (per-unit goes
         // into the corpus; quantity is preserved for traceability but not
