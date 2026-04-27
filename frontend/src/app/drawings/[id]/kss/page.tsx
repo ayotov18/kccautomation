@@ -391,6 +391,41 @@ export default function KssReportPage() {
       ? subtotal
       : structures.find((s) => s.id === activeStructure)?.subtotal_eur ?? 0;
 
+  // Cost ladder, driven by the API's cost_ladder field — same numbers the
+  // bottom "ОБЩА СТОЙНОСТ" widget uses. When viewing a single module, scale
+  // every ladder line proportionally so top totals row matches the bottom.
+  type CostLadder = {
+    smr_subtotal?: number | null;
+    contingency?: number | null;
+    delivery_storage?: number | null;
+    profit?: number | null;
+    pre_vat_total?: number | null;
+    vat?: number | null;
+    final_total?: number | null;
+  };
+  const costLadderRaw = (report?.cost_ladder as CostLadder | undefined) ?? {};
+  const ladderSubtotal = costLadderRaw.smr_subtotal ?? subtotal ?? 0;
+  const proportion =
+    activeStructure === 'all' || structures.length <= 1 || ladderSubtotal <= 0
+      ? 1
+      : displayedSubtotal / ladderSubtotal;
+  const scaled = (n: number | null | undefined) => (n ?? 0) * proportion;
+  const displayedOverheadsTotal =
+    scaled(costLadderRaw.contingency) +
+    scaled(costLadderRaw.delivery_storage) +
+    scaled(costLadderRaw.profit);
+  const displayedFinalTotal = scaled(costLadderRaw.final_total);
+  const overheadPct =
+    ladderSubtotal > 0
+      ? Math.round(
+          (((costLadderRaw.contingency ?? 0) +
+            (costLadderRaw.delivery_storage ?? 0) +
+            (costLadderRaw.profit ?? 0)) /
+            ladderSubtotal) *
+            100,
+        )
+      : 0;
+
   return (
     <div className="oe-fade-in">
 <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -528,19 +563,31 @@ export default function KssReportPage() {
         ) : (
         <div className="grid grid-cols-4 gap-4">
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold">{report.item_count as number}</div>
+            <div className="text-2xl font-bold font-numeric">
+              {activeStructure === 'all' || structures.length <= 1
+                ? (report.item_count as number)
+                : displayedSections.reduce((s, x) => s + x.items.length, 0)}
+            </div>
             <div className="text-xs text-content-tertiary">Позиции</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-emerald-400">{displayedSubtotal.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-emerald-400 font-numeric">
+              {displayedSubtotal.toFixed(2)}
+            </div>
             <div className="text-xs text-content-tertiary">Общо СМР (€)</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-content-secondary">{(displayedSubtotal * 0.58).toFixed(2)}</div>
-            <div className="text-xs text-content-tertiary">Надбавки (58%)</div>
+            <div className="text-2xl font-bold text-content-secondary font-numeric">
+              {displayedOverheadsTotal.toFixed(2)}
+            </div>
+            <div className="text-xs text-content-tertiary">
+              Надбавки {overheadPct > 0 ? `(${overheadPct}%)` : ''}
+            </div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-sky-300">{(displayedSubtotal * 1.58 * 1.20).toFixed(2)}</div>
+            <div className="text-2xl font-bold text-sky-300 font-numeric">
+              {displayedFinalTotal.toFixed(2)}
+            </div>
             <div className="text-xs text-content-tertiary">Общо с ДДС (€)</div>
           </div>
         </div>

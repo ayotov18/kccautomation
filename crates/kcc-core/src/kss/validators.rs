@@ -17,12 +17,12 @@ use serde::{Deserialize, Serialize};
 pub const ALLOWED_UNITS: &[&str] = &[
     "m²", "М2", "м2",
     "m³", "М3", "м3",
-    "м", "m", "мл",
-    "кг", "kg",
-    "тон", "t",
-    "бр.", "бр", "pcs",
+    "М", "м", "m", "мл", "ML",
+    "КГ", "кг", "kg",
+    "Т", "тон", "t",
+    "БР", "бр.", "бр", "pcs", "EA", "ea",
     "компл.", "компл",
-    "л", "l",
+    "Л", "л", "l",
     "m²·mm", // from the quantity_scraper per-mm TDS case
 ];
 

@@ -990,10 +990,36 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     // run sanity validators, and tag renovation reports.
     let gen_defaults = crate::pricing_defaults::PricingDefaults::load_for_user(&ctx.db, user_id).await;
     let vat_ratio = gen_defaults.vat_rate_pct / 100.0;
-    let overheads = kcc_core::kss::types::KssOverheads {
-        contingency_pct:        gen_defaults.contingency_pct,
-        delivery_storage_pct:   gen_defaults.dr_materials_pct,
-        profit_pct:             gen_defaults.profit_pct,
+
+    // RAG-with-linked-offer: the user pinned a human KSS offer to this
+    // drawing. That offer's totals ARE the final price the GC quoted —
+    // adding overheads on top double-counts markup that's already baked
+    // into the corpus rows. Force overheads to 0 in this mode, VAT only.
+    let has_linked_offer: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM user_price_imports
+                       WHERE user_id = $1 AND drawing_id = $2)",
+    )
+    .bind(user_id)
+    .bind(drawing_id)
+    .fetch_one(&ctx.db)
+    .await
+    .unwrap_or(false);
+    let overheads = if mode == "rag" && has_linked_offer {
+        tracing::info!(
+            %session_id, %drawing_id,
+            "Linked offer detected — zeroing overheads (offer is final price, VAT-only on top)",
+        );
+        kcc_core::kss::types::KssOverheads {
+            contingency_pct: 0.0,
+            delivery_storage_pct: 0.0,
+            profit_pct: 0.0,
+        }
+    } else {
+        kcc_core::kss::types::KssOverheads {
+            contingency_pct: gen_defaults.contingency_pct,
+            delivery_storage_pct: gen_defaults.dr_materials_pct,
+            profit_pct: gen_defaults.profit_pct,
+        }
     };
     let report_id = Uuid::new_v4();
     let sectioned = kcc_core::kss::types::SectionedKssReport::from_items_full(
