@@ -127,12 +127,12 @@ export default function PricingDefaultsPage() {
                   <select
                     value={state.currency}
                     onChange={(e) =>
-                      setState((s) => ({ ...s, currency: e.target.value as 'EUR' | 'BGN' }))
+                      setState((s) => ({ ...s, currency: e.target.value as 'EUR' | 'EUR' }))
                     }
                     className="oe-input"
                   >
                     <option value="EUR">EUR (€) — стандартна от 2026</option>
-                    <option value="BGN">BGN (лв) — legacy</option>
+                    <option value="EUR">EUR (€) — legacy</option>
                   </select>
                 </Field>
                 <PctField

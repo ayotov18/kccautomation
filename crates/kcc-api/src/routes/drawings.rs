@@ -261,7 +261,7 @@ async fn get_drawing_summary(
     // Drawing metadata
     let drawing: (Uuid, String, String, Option<String>, Option<i32>, bool, Option<f64>, chrono::DateTime<chrono::Utc>) =
         sqlx::query_as(
-            "SELECT id, filename, original_format, units, entity_count, kss_generated, kss_total_lv, created_at FROM drawings WHERE id = $1 AND user_id = $2",
+            "SELECT id, filename, original_format, units, entity_count, kss_generated, kss_total_eur, created_at FROM drawings WHERE id = $1 AND user_id = $2",
         )
         .bind(id)
         .bind(user_id)
@@ -332,7 +332,7 @@ async fn get_drawing_summary(
 
     // KSS report info
     let kss_info: Option<(bool, Option<f64>, Option<f64>, Option<f64>, Option<i32>)> = sqlx::query_as(
-        "SELECT ai_enhanced, subtotal_lv, vat_lv, total_with_vat_lv, item_count FROM kss_reports WHERE drawing_id = $1 LIMIT 1"
+        "SELECT ai_enhanced, subtotal_eur, vat_eur, total_with_vat_eur, item_count FROM kss_reports WHERE drawing_id = $1 LIMIT 1"
     )
     .bind(id)
     .fetch_optional(&state.db)
@@ -342,9 +342,9 @@ async fn get_drawing_summary(
         serde_json::json!({
             "status": "generated",
             "ai_enhanced": ai_enhanced,
-            "subtotal_lv": subtotal,
-            "vat_lv": vat,
-            "total_with_vat_lv": total,
+            "subtotal_eur": subtotal,
+            "vat_eur": vat,
+            "total_with_vat_eur": total,
             "item_count": items,
         })
     } else {
@@ -359,7 +359,7 @@ async fn get_drawing_summary(
             "units": drawing.3,
             "entity_count": drawing.4,
             "kss_generated": drawing.5,
-            "kss_total_lv": drawing.6,
+            "kss_total_eur": drawing.6,
             "created_at": drawing.7.to_rfc3339(),
         },
         "analysis": analysis_summary,

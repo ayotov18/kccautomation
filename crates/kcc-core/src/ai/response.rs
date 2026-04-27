@@ -25,12 +25,12 @@ pub fn ai_response_to_kss_report(
 
             item_no += 1;
 
-            // Use real material/labor split if provided, otherwise fall back to price_lv
-            let (mat, lab) = if ai_item.material_price_lv > 0.0 || ai_item.labor_price_lv > 0.0 {
-                (ai_item.material_price_lv, ai_item.labor_price_lv)
+            // Use real material/labor split if provided, otherwise fall back to price_eur
+            let (mat, lab) = if ai_item.material_price_eur > 0.0 || ai_item.labor_price_eur > 0.0 {
+                (ai_item.material_price_eur, ai_item.labor_price_eur)
             } else {
-                // Legacy fallback: split price_lv into material 60% / labor 40%
-                (ai_item.price_lv * 0.60, ai_item.price_lv * 0.40)
+                // Legacy fallback: split price_eur into material 60% / labor 40%
+                (ai_item.price_eur * 0.60, ai_item.price_eur * 0.40)
             };
 
             let unit_total = mat + lab;
@@ -117,7 +117,7 @@ fn is_valid_item(item: &AiKssItem) -> bool {
     }
 
     // Price must be non-negative
-    if item.price_lv < 0.0 {
+    if item.price_eur < 0.0 {
         return false;
     }
 

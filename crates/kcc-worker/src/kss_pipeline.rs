@@ -345,7 +345,7 @@ pub async fn process_kss_job(job: GenerateKssJob, ctx: &WorkerContext) -> Result
 
     // ── Audit: Phase 5 baseline — rule-based stats ──────
     audit.phase5_generation.rule_based_items = kss_report.items.len();
-    audit.phase5_generation.rule_based_total_lv = kss_report.totals.grand_total;
+    audit.phase5_generation.rule_based_total_eur = kss_report.totals.grand_total;
 
     // ── AI Agent (OpenRouter) ─────────────────────────────
     update_status(&ctx.db, job_id, "reporting", 65).await?;
@@ -385,7 +385,7 @@ pub async fn process_kss_job(job: GenerateKssJob, ctx: &WorkerContext) -> Result
                             tracing::info!(
                                 %job_id,
                                 ai_items = ai_response.total_items,
-                                ai_total = format!("{:.2}", ai_response.total_lv),
+                                ai_total = format!("{:.2}", ai_response.total_eur),
                                 drawing_type = %ai_response.drawing_type,
                                 warnings = ai_response.warnings.len(),
                                 "AI KSS draft received"
@@ -485,17 +485,17 @@ pub async fn process_kss_job(job: GenerateKssJob, ctx: &WorkerContext) -> Result
     let ai_enhanced = kcc_core::ai::AiConfig::from_env().enabled;
 
     let _ = sqlx::query(
-        "INSERT INTO kss_reports (drawing_id, user_id, ai_enhanced, report_data, subtotal_lv, vat_lv, total_with_vat_lv, item_count, s3_key_excel, s3_key_pdf)
+        "INSERT INTO kss_reports (drawing_id, user_id, ai_enhanced, report_data, subtotal_eur, vat_eur, total_with_vat_eur, item_count, s3_key_excel, s3_key_pdf)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         ON CONFLICT (drawing_id) DO UPDATE SET report_data = $4, subtotal_lv = $5, vat_lv = $6, total_with_vat_lv = $7, item_count = $8, ai_enhanced = $3, generated_at = now(), s3_key_excel = $9, s3_key_pdf = $10"
+         ON CONFLICT (drawing_id) DO UPDATE SET report_data = $4, subtotal_eur = $5, vat_eur = $6, total_with_vat_eur = $7, item_count = $8, ai_enhanced = $3, generated_at = now(), s3_key_excel = $9, s3_key_pdf = $10"
     )
     .bind(drawing_id)
     .bind(user_id)
     .bind(ai_enhanced)
     .bind(&report_data)
-    .bind(sectioned.subtotal_bgn)
-    .bind(sectioned.vat_bgn)
-    .bind(sectioned.total_with_vat_bgn)
+    .bind(sectioned.subtotal_eur)
+    .bind(sectioned.vat_eur)
+    .bind(sectioned.total_with_vat_eur)
     .bind(kss_report.items.len() as i32)
     .bind(&excel_key)
     .bind(&pdf_key)
@@ -504,9 +504,9 @@ pub async fn process_kss_job(job: GenerateKssJob, ctx: &WorkerContext) -> Result
 
     // Update drawing kss status
     let _ = sqlx::query(
-        "UPDATE drawings SET kss_generated = true, kss_total_lv = $1 WHERE id = $2"
+        "UPDATE drawings SET kss_generated = true, kss_total_eur = $1 WHERE id = $2"
     )
-    .bind(sectioned.total_with_vat_bgn)
+    .bind(sectioned.total_with_vat_eur)
     .bind(drawing_id)
     .execute(&ctx.db)
     .await;
@@ -581,9 +581,9 @@ pub async fn process_kss_job(job: GenerateKssJob, ctx: &WorkerContext) -> Result
         let p6 = &mut audit.phase6_report;
         p6.total_items = kss_report.items.len();
         p6.total_sections = sectioned.sections.len();
-        p6.subtotal_bgn = sectioned.subtotal_bgn;
-        p6.vat_bgn = sectioned.vat_bgn;
-        p6.total_with_vat_bgn = sectioned.total_with_vat_bgn;
+        p6.subtotal_eur = sectioned.subtotal_eur;
+        p6.vat_eur = sectioned.vat_eur;
+        p6.total_with_vat_eur = sectioned.total_with_vat_eur;
         p6.reports_generated = vec!["excel".into(), "pdf".into()];
     }
 
@@ -657,7 +657,7 @@ async fn build_price_list_from_scraped(db: &PgPool, user_id: Uuid) -> PriceList 
     use kcc_core::kss::types::PriceListItem;
 
     let rows: Vec<(Option<String>, String, Option<String>, Option<f64>, Option<f64>)> = match sqlx::query_as(
-        "SELECT sek_code, item_name, unit, price_min_lv, price_max_lv FROM scraped_price_rows WHERE user_id = $1 AND archived_at IS NULL AND sek_code IS NOT NULL ORDER BY mapping_confidence DESC"
+        "SELECT sek_code, item_name, unit, price_min_eur, price_max_eur FROM scraped_price_rows WHERE user_id = $1 AND archived_at IS NULL AND sek_code IS NOT NULL ORDER BY mapping_confidence DESC"
     )
     .bind(user_id)
     .fetch_all(db)
@@ -674,9 +674,9 @@ async fn build_price_list_from_scraped(db: &PgPool, user_id: Uuid) -> PriceList 
         return PriceList::empty();
     }
 
-    let items: Vec<PriceListItem> = rows.iter().filter_map(|(sek_code, name, unit, min_lv, max_lv)| {
+    let items: Vec<PriceListItem> = rows.iter().filter_map(|(sek_code, name, unit, min_eur, max_eur)| {
         let code = sek_code.as_ref()?;
-        let avg = match (min_lv, max_lv) {
+        let avg = match (min_eur, max_eur) {
             (Some(min), Some(max)) => (min + max) / 2.0,
             (Some(v), None) | (None, Some(v)) => *v,
             _ => return None,

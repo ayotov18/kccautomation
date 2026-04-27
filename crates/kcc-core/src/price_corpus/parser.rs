@@ -22,9 +22,9 @@ pub struct OfferRow {
     pub description: String,
     pub unit: String,
     pub quantity: Option<f64>,
-    pub material_price_lv: f64,
-    pub labor_price_lv: f64,
-    pub total_unit_price_lv: f64,
+    pub material_price_eur: f64,
+    pub labor_price_eur: f64,
+    pub total_unit_price_eur: f64,
     pub source_sheet: String,
     pub source_row: u32,
 }
@@ -176,9 +176,9 @@ fn parse_sheet(range: &Range<Data>, sheet_name: &str) -> ParsedOffer {
             description: desc.to_string(),
             unit: normalise_unit(&unit),
             quantity: qty,
-            material_price_lv: mat_unit,
-            labor_price_lv: lab_unit,
-            total_unit_price_lv: total_unit_price,
+            material_price_eur: mat_unit,
+            labor_price_eur: lab_unit,
+            total_unit_price_eur: total_unit_price,
             source_sheet: sheet_name.to_string(),
             source_row: row_idx as u32 + 1, // 1-indexed for human-readability
         });
@@ -375,9 +375,9 @@ mod tests {
             .iter()
             .find(|r| r.description.contains("10х12") && r.description.to_lowercase().contains("kvh"));
         let kvh = kvh.expect("expected to find KVH 10x12 row");
-        assert!((kvh.material_price_lv - 690.0).abs() < 0.01);
-        assert!((kvh.labor_price_lv - 950.0).abs() < 0.01);
-        assert!((kvh.total_unit_price_lv - 1640.0).abs() < 0.01);
+        assert!((kvh.material_price_eur - 690.0).abs() < 0.01);
+        assert!((kvh.labor_price_eur - 950.0).abs() < 0.01);
+        assert!((kvh.total_unit_price_eur - 1640.0).abs() < 0.01);
         assert_eq!(kvh.unit, "М3");
     }
 }

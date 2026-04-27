@@ -316,13 +316,13 @@ async fn get_kss_data(
 
     // Load from kss_reports table. We pull the full cost ladder columns so
     // the UI reads the same numbers the audit trail reads — no more "UI says
-    // 65,685 лв, audit says 49,761 лв" drift.
+    // 65,685 €, audit says 49,761 €" drift.
     use sqlx::Row as _;
     let row_opt = sqlx::query(
         "SELECT report_data, ai_enhanced,
-                subtotal_lv, vat_lv, total_with_vat_lv,
-                smr_subtotal_lv, contingency_lv, delivery_storage_lv, profit_lv,
-                pre_vat_total_lv, final_total_lv,
+                subtotal_eur, vat_eur, total_with_vat_eur,
+                smr_subtotal_eur, contingency_eur, delivery_storage_eur, profit_eur,
+                pre_vat_total_eur, final_total_eur,
                 item_count, generated_at, status
          FROM kss_reports WHERE drawing_id = $1
          ORDER BY generated_at DESC LIMIT 1",
@@ -335,15 +335,15 @@ async fn get_kss_data(
 
     let mut report_data: serde_json::Value = row.try_get("report_data").unwrap_or_default();
     let ai_enhanced: bool = row.try_get("ai_enhanced").unwrap_or(false);
-    let subtotal: Option<f64> = row.try_get("subtotal_lv").ok();
-    let vat: Option<f64> = row.try_get("vat_lv").ok();
-    let total: Option<f64> = row.try_get("total_with_vat_lv").ok();
-    let smr_subtotal: Option<f64> = row.try_get("smr_subtotal_lv").ok();
-    let contingency_lv: Option<f64> = row.try_get("contingency_lv").ok();
-    let delivery_storage_lv: Option<f64> = row.try_get("delivery_storage_lv").ok();
-    let profit_lv: Option<f64> = row.try_get("profit_lv").ok();
-    let pre_vat_total_lv: Option<f64> = row.try_get("pre_vat_total_lv").ok();
-    let final_total_lv: Option<f64> = row.try_get("final_total_lv").ok();
+    let subtotal: Option<f64> = row.try_get("subtotal_eur").ok();
+    let vat: Option<f64> = row.try_get("vat_eur").ok();
+    let total: Option<f64> = row.try_get("total_with_vat_eur").ok();
+    let smr_subtotal: Option<f64> = row.try_get("smr_subtotal_eur").ok();
+    let contingency_eur: Option<f64> = row.try_get("contingency_eur").ok();
+    let delivery_storage_eur: Option<f64> = row.try_get("delivery_storage_eur").ok();
+    let profit_eur: Option<f64> = row.try_get("profit_eur").ok();
+    let pre_vat_total_eur: Option<f64> = row.try_get("pre_vat_total_eur").ok();
+    let final_total_eur: Option<f64> = row.try_get("final_total_eur").ok();
     let items: Option<i32> = row.try_get("item_count").ok();
     let generated_at: chrono::DateTime<chrono::Utc> = row
         .try_get("generated_at")
@@ -411,7 +411,7 @@ async fn get_kss_data(
         let mut out = Vec::with_capacity(rows.len());
         for (sid, idx, label, x0, y0, x1, y1) in rows {
             let subtotal: Option<f64> = sqlx::query_scalar(
-                "SELECT COALESCE(SUM(total_lv), 0)::float8 FROM kss_line_items
+                "SELECT COALESCE(SUM(total_eur), 0)::float8 FROM kss_line_items
                  WHERE report_id = $1 AND structure_id = $2",
             ).bind(report_id).bind(sid).fetch_one(&state.db).await.ok();
             let line_count: Option<i64> = sqlx::query_scalar(
@@ -422,7 +422,7 @@ async fn get_kss_data(
                 "index": idx,
                 "label": label,
                 "bbox": [x0, y0, x1, y1],
-                "subtotal_lv": subtotal.unwrap_or(0.0),
+                "subtotal_eur": subtotal.unwrap_or(0.0),
                 "line_count": line_count.unwrap_or(0),
             }));
         }
@@ -436,7 +436,7 @@ async fn get_kss_data(
         // Using `sqlx::query` + try_get lets us avoid a 17-field tuple literal.
         use sqlx::Row;
         let rows = sqlx::query(
-            "SELECT id, sek_code, description, unit, quantity, unit_price_lv, total_lv,
+            "SELECT id, sek_code, description, unit, quantity, unit_price_eur, total_eur,
                     labor_price, material_price, confidence, reasoning, provenance,
                     source_entity_id, source_layer, centroid_x, centroid_y,
                     extraction_method, geometry_confidence, needs_review
@@ -458,8 +458,8 @@ async fn get_kss_data(
                 "description":    r.try_get::<String, _>("description").unwrap_or_default(),
                 "unit":           r.try_get::<String, _>("unit").unwrap_or_default(),
                 "quantity":       r.try_get::<f64, _>("quantity").unwrap_or(0.0),
-                "unit_price_lv":  r.try_get::<f64, _>("unit_price_lv").unwrap_or(0.0),
-                "total_lv":       r.try_get::<f64, _>("total_lv").unwrap_or(0.0),
+                "unit_price_eur":  r.try_get::<f64, _>("unit_price_eur").unwrap_or(0.0),
+                "total_eur":       r.try_get::<f64, _>("total_eur").unwrap_or(0.0),
                 "labor_price":    r.try_get::<Option<f64>, _>("labor_price").unwrap_or(None),
                 "material_price": r.try_get::<Option<f64>, _>("material_price").unwrap_or(None),
                 "confidence":     r.try_get::<f64, _>("confidence").unwrap_or(0.0),
@@ -481,19 +481,19 @@ async fn get_kss_data(
     Ok(Json(serde_json::json!({
         "report": report_data,
         "ai_enhanced": ai_enhanced,
-        "subtotal_lv": subtotal,
-        "vat_lv": vat,
-        "total_with_vat_lv": total,
+        "subtotal_eur": subtotal,
+        "vat_eur": vat,
+        "total_with_vat_eur": total,
         // Canonical cost ladder — UI reads these; no more on-the-fly
         // recomputation that could drift from the DB.
         "cost_ladder": {
             "smr_subtotal":      smr_subtotal.or(subtotal),
-            "contingency":       contingency_lv,
-            "delivery_storage":  delivery_storage_lv,
-            "profit":            profit_lv,
-            "pre_vat_total":     pre_vat_total_lv.or(subtotal),
+            "contingency":       contingency_eur,
+            "delivery_storage":  delivery_storage_eur,
+            "profit":            profit_eur,
+            "pre_vat_total":     pre_vat_total_eur.or(subtotal),
             "vat":               vat,
-            "final_total":       final_total_lv.or(total),
+            "final_total":       final_total_eur.or(total),
         },
         "item_count": items,
         "generated_at": generated_at.to_rfc3339(),
@@ -620,9 +620,9 @@ async fn get_ai_kss_research_items(
 
         if fields.is_empty() { continue; }
 
-        let mat = fields.get("material_price_lv").and_then(|v| v.parse::<f64>().ok());
-        let lab = fields.get("labor_price_lv").and_then(|v| v.parse::<f64>().ok());
-        let total = fields.get("price_lv").and_then(|v| v.parse::<f64>().ok())
+        let mat = fields.get("material_price_eur").and_then(|v| v.parse::<f64>().ok());
+        let lab = fields.get("labor_price_eur").and_then(|v| v.parse::<f64>().ok());
+        let total = fields.get("price_eur").and_then(|v| v.parse::<f64>().ok())
             .or_else(|| match (mat, lab) {
                 (Some(m), Some(l)) => Some(m + l),
                 _ => None,
@@ -633,11 +633,11 @@ async fn get_ai_kss_research_items(
             "sek_code": fields.get("sek_code").unwrap_or(&String::new()),
             "description": fields.get("description").unwrap_or(&String::new()),
             "unit": fields.get("unit").unwrap_or(&"М2".to_string()),
-            "material_price_lv": mat,
-            "labor_price_lv": lab,
-            "price_lv": total,
-            "price_min_lv": fields.get("price_min_lv").and_then(|v| v.parse::<f64>().ok()),
-            "price_max_lv": fields.get("price_max_lv").and_then(|v| v.parse::<f64>().ok()),
+            "material_price_eur": mat,
+            "labor_price_eur": lab,
+            "price_eur": total,
+            "price_min_eur": fields.get("price_min_eur").and_then(|v| v.parse::<f64>().ok()),
+            "price_max_eur": fields.get("price_max_eur").and_then(|v| v.parse::<f64>().ok()),
             "source_url": fields.get("source_url").unwrap_or(&String::new()),
             "notes": fields.get("notes").unwrap_or(&String::new()),
             "confidence": fields.get("confidence").and_then(|v| v.parse::<f64>().ok()),
@@ -824,7 +824,7 @@ async fn accept_suggestion(
 
     // Load the suggestion item
     let item: Option<(String, String, String, f64, f64, f64, Option<f64>, Option<f64>, Uuid)> = sqlx::query_as(
-        "SELECT sek_code, description, unit, quantity, unit_price_lv, total_lv, labor_price, material_price, report_id
+        "SELECT sek_code, description, unit, quantity, unit_price_eur, total_eur, labor_price, material_price, report_id
          FROM kss_line_items WHERE id = $1"
     ).bind(item_id).fetch_optional(&state.db).await
         .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
@@ -837,16 +837,16 @@ async fn accept_suggestion(
     if let Some(ref desc) = body.edited_description { description = desc.clone(); }
     if let Some(qty) = body.edited_quantity { quantity = qty; }
     if let Some(up) = body.edited_unit_price { unit_price = up; }
-    let total_lv = quantity * unit_price;
+    let total_eur = quantity * unit_price;
 
     // Update the item: accepted, high confidence
     sqlx::query(
         "UPDATE kss_line_items SET suggestion_status = 'accepted', confidence = 1.0, provenance = 'user_accepted',
-         sek_code = $2, description = $3, unit = $4, quantity = $5, unit_price_lv = $6, total_lv = $7
+         sek_code = $2, description = $3, unit = $4, quantity = $5, unit_price_eur = $6, total_eur = $7
          WHERE id = $1"
     )
     .bind(item_id).bind(&sek_code).bind(&description).bind(&unit)
-    .bind(quantity).bind(unit_price).bind(total_lv)
+    .bind(quantity).bind(unit_price).bind(total_eur)
     .execute(&state.db).await
     .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
 
@@ -872,7 +872,7 @@ async fn accept_suggestion(
                 material_price: material.unwrap_or(0.0),
                 mechanization_price: 0.0,
                 overhead_price: 0.0,
-                total_price: total_lv,
+                total_price: total_eur,
                 confidence: 1.0,
                 reasoning: "User accepted from AI suggestions".into(),
                 provenance: "user_accepted".into(),
@@ -887,7 +887,7 @@ async fn accept_suggestion(
                     existing_item.confidence = 1.0;
                     existing_item.provenance = "user_accepted".to_string();
                     existing_item.quantity = quantity;
-                    existing_item.total_price = total_lv;
+                    existing_item.total_price = total_eur;
                     existing_item.labor_price = labor.unwrap_or(existing_item.labor_price);
                     existing_item.material_price = material.unwrap_or(existing_item.material_price);
                 } else {
@@ -896,7 +896,7 @@ async fn accept_suggestion(
                 for (i, item) in sec.items.iter_mut().enumerate() {
                     item.item_no = i + 1;
                 }
-                sec.section_total_bgn = sec.items.iter().map(|i| i.total_price).sum();
+                sec.section_total_eur = sec.items.iter().map(|i| i.total_price).sum();
             } else {
                 // Create new section
                 sectioned.sections.push(kcc_core::kss::types::KssSection {
@@ -904,12 +904,12 @@ async fn accept_suggestion(
                     title_bg: format!("ДОБАВЕНИ ({})", sek_group),
                     sek_group: sek_group.clone(),
                     items: vec![kcc_core::kss::types::KssLineItem { item_no: 1, ..new_item }],
-                    section_total_bgn: total_lv,
+                    section_total_eur: total_eur,
                 });
             }
 
             // Recalculate + persist the FULL cost ladder (subtotal + markups
-            // + VAT + final). Prior code only touched subtotal/vat/total_lv,
+            // + VAT + final). Prior code only touched subtotal/vat/total_eur,
             // leaving the ladder columns stale — user saw no price change
             // after accepting suggestions because the UI reads the ladder.
             recompute_and_persist_ladder(&state.db, report_id, user_id, &mut sectioned).await?;
@@ -953,7 +953,7 @@ struct AddItemBody {
     description: String,
     unit: String,
     quantity: f64,
-    unit_price_lv: f64,
+    unit_price_eur: f64,
 }
 
 async fn add_kss_item(
@@ -975,18 +975,18 @@ async fn add_kss_item(
     let (report_id, report_data) = report_row
         .ok_or_else(|| ApiError::NotFound("No KSS report found".into()))?;
 
-    let total_lv = body.quantity * body.unit_price_lv;
+    let total_eur = body.quantity * body.unit_price_eur;
     let item_id = Uuid::new_v4();
 
     // Insert into kss_line_items
     let sek_group = extract_sek_group_from_code(&body.sek_code);
     sqlx::query(
-        "INSERT INTO kss_line_items (id, report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_lv, total_lv, confidence, reasoning, provenance)
+        "INSERT INTO kss_line_items (id, report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_eur, total_eur, confidence, reasoning, provenance)
          VALUES ($1, $2, $3, '', 0, $4, $5, $6, $7, $8, $9, 1.0, 'User added manually', 'user_added')"
     )
     .bind(item_id).bind(report_id).bind(&sek_group)
     .bind(&body.sek_code).bind(&body.description).bind(&body.unit)
-    .bind(body.quantity).bind(body.unit_price_lv).bind(total_lv)
+    .bind(body.quantity).bind(body.unit_price_eur).bind(total_eur)
     .execute(&state.db).await
     .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
 
@@ -999,10 +999,10 @@ async fn add_kss_item(
             unit: body.unit.clone(),
             quantity: body.quantity,
             labor_price: 0.0,
-            material_price: body.unit_price_lv,
+            material_price: body.unit_price_eur,
             mechanization_price: 0.0,
             overhead_price: 0.0,
-            total_price: total_lv,
+            total_price: total_eur,
             confidence: 1.0,
             reasoning: "User added manually".into(),
             provenance: "user_added".into(),
@@ -1013,14 +1013,14 @@ async fn add_kss_item(
         if let Some(sec) = section {
             sec.items.push(new_item);
             for (i, item) in sec.items.iter_mut().enumerate() { item.item_no = i + 1; }
-            sec.section_total_bgn = sec.items.iter().map(|i| i.total_price).sum();
+            sec.section_total_eur = sec.items.iter().map(|i| i.total_price).sum();
         } else {
             sectioned.sections.push(kcc_core::kss::types::KssSection {
                 number: "—".into(),
                 title_bg: format!("ДОБАВЕНИ ({})", sek_group),
                 sek_group: sek_group.clone(),
                 items: vec![kcc_core::kss::types::KssLineItem { item_no: 1, ..new_item }],
-                section_total_bgn: total_lv,
+                section_total_eur: total_eur,
             });
         }
 
@@ -1072,7 +1072,7 @@ async fn finalize_kss(
             for (i, item) in section.items.iter_mut().enumerate() {
                 item.item_no = i + 1;
             }
-            section.section_total_bgn = section.items.iter().map(|i| i.total_price).sum();
+            section.section_total_eur = section.items.iter().map(|i| i.total_price).sum();
         }
         // Remove empty sections
         sectioned.sections.retain(|s| !s.items.is_empty());
@@ -1089,8 +1089,8 @@ async fn finalize_kss(
         Ok(Json(serde_json::json!({
             "status": "finalized",
             "item_count": item_count,
-            "subtotal_bgn": sectioned.cost_ladder.smr_subtotal,
-            "total_with_vat_bgn": sectioned.cost_ladder.final_total,
+            "subtotal_eur": sectioned.cost_ladder.smr_subtotal,
+            "total_with_vat_eur": sectioned.cost_ladder.final_total,
         })))
     } else {
         Err(ApiError::Internal("Failed to parse report data".into()))
@@ -1162,27 +1162,27 @@ async fn recompute_and_persist_ladder(
     sectioned.vat_rate = vat_rate;
 
     // Recompute from the current sections (items may have changed).
-    let smr: f64 = sectioned.sections.iter().map(|s| s.section_total_bgn).sum();
+    let smr: f64 = sectioned.sections.iter().map(|s| s.section_total_eur).sum();
     let ladder = kcc_core::kss::types::KssCostLadder::compute(smr, overheads, vat_rate);
-    sectioned.subtotal_bgn = ladder.smr_subtotal;
-    sectioned.vat_bgn = ladder.vat;
-    sectioned.total_with_vat_bgn = ladder.final_total;
+    sectioned.subtotal_eur = ladder.smr_subtotal;
+    sectioned.vat_eur = ladder.vat;
+    sectioned.total_with_vat_eur = ladder.final_total;
     sectioned.cost_ladder = ladder;
 
     let item_count: i32 = sectioned.sections.iter().map(|s| s.items.len() as i32).sum();
     sqlx::query(
         "UPDATE kss_reports SET
             report_data           = $1,
-            subtotal_lv           = $2,
-            vat_lv                = $3,
-            total_with_vat_lv     = $4,
+            subtotal_eur           = $2,
+            vat_eur                = $3,
+            total_with_vat_eur     = $4,
             item_count            = $5,
-            smr_subtotal_lv       = $6,
-            contingency_lv        = $7,
-            delivery_storage_lv   = $8,
-            profit_lv             = $9,
-            pre_vat_total_lv      = $10,
-            final_total_lv        = $11
+            smr_subtotal_eur       = $6,
+            contingency_eur        = $7,
+            delivery_storage_eur   = $8,
+            profit_eur             = $9,
+            pre_vat_total_eur      = $10,
+            final_total_eur        = $11
          WHERE id = $12",
     )
     .bind(serde_json::to_value(sectioned).unwrap_or_default())

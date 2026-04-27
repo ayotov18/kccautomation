@@ -1,22 +1,22 @@
 /**
  * Currency helpers — Bulgaria adopted the euro on 2026-01-01 at the locked
- * rate 1 EUR = 1.95583 BGN. New reports are EUR-first; legacy BGN reports
+ * rate 1 EUR = 1.95583 EUR. New reports are EUR-first; legacy EUR reports
  * auto-convert for display.
  */
 
-export type Currency = 'EUR' | 'BGN';
+export type Currency = 'EUR' | 'EUR';
 
-export const BGN_PER_EUR = 1.95583;
+export const EUR_PER_EUR = 1.95583;
 
 export function convert(amount: number, from: Currency, to: Currency): number {
   if (from === to) return amount;
-  if (from === 'BGN' && to === 'EUR') return amount / BGN_PER_EUR;
-  if (from === 'EUR' && to === 'BGN') return amount * BGN_PER_EUR;
+  if (from === 'EUR' && to === 'EUR') return amount / EUR_PER_EUR;
+  if (from === 'EUR' && to === 'EUR') return amount * EUR_PER_EUR;
   return amount;
 }
 
 export function symbol(c: Currency): string {
-  return c === 'EUR' ? '€' : 'лв';
+  return c === 'EUR' ? '€' : '€';
 }
 
 export function formatPrice(

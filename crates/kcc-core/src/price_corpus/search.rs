@@ -19,9 +19,9 @@ pub struct CorpusMatch {
     pub description: String,
     pub unit: String,
     pub quantity: Option<f64>,
-    pub material_price_lv: f64,
-    pub labor_price_lv: f64,
-    pub total_unit_price_lv: f64,
+    pub material_price_eur: f64,
+    pub labor_price_eur: f64,
+    pub total_unit_price_eur: f64,
     pub similarity: f64,
     pub source_sheet: Option<String>,
     pub source_row: Option<i32>,
@@ -68,16 +68,16 @@ pub async fn search_corpus(
     let rows = sqlx::query(
         r#"
         SELECT id, sek_code, description, unit, quantity,
-               COALESCE(material_price_lv, 0.0)   AS material_price_lv,
-               COALESCE(labor_price_lv, 0.0)      AS labor_price_lv,
-               COALESCE(total_unit_price_lv, 0.0) AS total_unit_price_lv,
+               COALESCE(material_price_eur, 0.0)   AS material_price_eur,
+               COALESCE(labor_price_eur, 0.0)      AS labor_price_eur,
+               COALESCE(total_unit_price_eur, 0.0) AS total_unit_price_eur,
                source_sheet, source_row,
                similarity(description, $2)        AS sim,
                ts_rank(description_tsv, plainto_tsquery('simple', $2)) AS rank
           FROM user_price_corpus
          WHERE user_id = $1
            AND similarity(description, $2) >= $3
-           AND (COALESCE(material_price_lv, 0) + COALESCE(labor_price_lv, 0)) > 0
+           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
          ORDER BY (similarity(description, $2) * 0.7
                   + ts_rank(description_tsv, plainto_tsquery('simple', $2)) * 0.3) DESC
          LIMIT $4
@@ -98,9 +98,9 @@ pub async fn search_corpus(
             description: r.try_get("description")?,
             unit: r.try_get("unit")?,
             quantity: r.try_get("quantity").ok(),
-            material_price_lv: r.try_get("material_price_lv")?,
-            labor_price_lv: r.try_get("labor_price_lv")?,
-            total_unit_price_lv: r.try_get("total_unit_price_lv")?,
+            material_price_eur: r.try_get("material_price_eur")?,
+            labor_price_eur: r.try_get("labor_price_eur")?,
+            total_unit_price_eur: r.try_get("total_unit_price_eur")?,
             similarity: r.try_get::<f32, _>("sim")? as f64,
             source_sheet: r.try_get("source_sheet").ok(),
             source_row: r.try_get("source_row").ok(),

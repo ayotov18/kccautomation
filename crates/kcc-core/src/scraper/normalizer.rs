@@ -1,6 +1,6 @@
 //! Normalizes scraped prices into PriceListItem CSV format.
 //!
-//! Canonical currency: лв (BGN). EUR is derived.
+//! Canonical currency: € (EUR). EUR is derived.
 
 use crate::kss::types::PriceListItem;
 use crate::scraper::sek_mapper::MappedPrice;
@@ -12,23 +12,23 @@ const MATERIAL_RATIO: f64 = 0.35;
 const MECHANIZATION_RATIO: f64 = 0.10;
 const OVERHEAD_RATIO: f64 = 0.15;
 
-/// Convert mapped scraped prices into PriceListItems (prices in лв).
+/// Convert mapped scraped prices into PriceListItems (prices in €).
 pub fn normalize_to_price_list(mapped: &[MappedPrice]) -> Vec<PriceListItem> {
     mapped
         .iter()
         .filter(|m| m.sek_code.is_some())
-        .filter(|m| m.scraped.price_avg_lv() > 0.0)
+        .filter(|m| m.scraped.price_avg_eur() > 0.0)
         .map(|m| {
-            let price_lv = m.scraped.price_avg_lv();
+            let price_eur = m.scraped.price_avg_eur();
 
             PriceListItem {
                 sek_code: m.sek_code.clone().unwrap_or_default(),
                 description: m.scraped.description_bg.clone(),
                 unit: price_utils::normalize_unit(&m.scraped.unit),
-                labor_price: price_lv * LABOR_RATIO,
-                material_price: price_lv * MATERIAL_RATIO,
-                mechanization_price: price_lv * MECHANIZATION_RATIO,
-                overhead_price: price_lv * OVERHEAD_RATIO,
+                labor_price: price_eur * LABOR_RATIO,
+                material_price: price_eur * MATERIAL_RATIO,
+                mechanization_price: price_eur * MECHANIZATION_RATIO,
+                overhead_price: price_eur * OVERHEAD_RATIO,
             }
         })
         .collect()
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn test_lv_prices_used_directly() {
         let mapped = vec![MappedPrice {
-            scraped: ScrapedPrice::from_lv(
+            scraped: ScrapedPrice::from_eur(
                 "test", "https://test.com", "Тухлена зидария", "М2",
                 Some(80.0), Some(120.0), None, None, 0.9,
             ),
@@ -81,11 +81,11 @@ mod tests {
         let items = normalize_to_price_list(&mapped);
         assert_eq!(items.len(), 1);
         let total = items[0].total_unit_price();
-        assert!((total - 100.0).abs() < 0.01); // avg of 80-120 лв
+        assert!((total - 100.0).abs() < 0.01); // avg of 80-120 €
     }
 
     #[test]
-    fn test_eur_converted_to_lv() {
+    fn test_eur_converted_to_eur() {
         let mapped = vec![MappedPrice {
             scraped: ScrapedPrice::from_eur(
                 "test", "https://test.com", "Зидария", "М2",
@@ -99,7 +99,7 @@ mod tests {
         let items = normalize_to_price_list(&mapped);
         assert_eq!(items.len(), 1);
         let total = items[0].total_unit_price();
-        let expected = 50.0 * crate::scraper::EUR_TO_BGN;
+        let expected = 50.0 * crate::scraper::EUR_TO_EUR;
         assert!((total - expected).abs() < 0.01);
     }
 }

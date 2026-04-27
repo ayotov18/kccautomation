@@ -62,7 +62,7 @@ pub async fn get_cost_item(db: &PgPool, id: Uuid) -> Result<CostItem, CostError>
 
 /// Create a cost item.
 pub async fn create_cost_item(db: &PgPool, dto: CreateCostItem) -> Result<CostItem, CostError> {
-    let currency = dto.currency.unwrap_or_else(|| "BGN".to_string());
+    let currency = dto.currency.unwrap_or_else(|| "EUR".to_string());
 
     let item = sqlx::query_as::<_, CostItem>(
         r#"INSERT INTO cost_items
@@ -103,7 +103,7 @@ pub async fn import_csv(
 
     for result in reader.deserialize() {
         let row: CsvCostRow = result.map_err(|e| CostError::CsvParse(e.to_string()))?;
-        let currency = row.currency.unwrap_or_else(|| "BGN".to_string());
+        let currency = row.currency.unwrap_or_else(|| "EUR".to_string());
 
         sqlx::query(
             r#"INSERT INTO cost_items

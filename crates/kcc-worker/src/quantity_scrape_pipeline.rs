@@ -295,7 +295,7 @@ async fn persist_norms(
     // Re-use sek_mapper by wrapping each ScrapedNorm in a minimal ScrapedPrice.
     // We only need `description_bg` + `unit` — price fields are irrelevant.
     for norm in norms {
-        let shim = ScrapedPrice::from_lv(
+        let shim = ScrapedPrice::from_eur(
             &norm.source_site,
             &norm.source_url,
             &norm.description_bg,

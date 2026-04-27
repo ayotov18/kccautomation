@@ -204,8 +204,6 @@ export interface ScrapedPriceItem {
   sek_group: string | null;
   item_name: string;
   unit: string | null;
-  price_min_lv: number | null;
-  price_max_lv: number | null;
   price_min_eur: number | null;
   price_max_eur: number | null;
   currency: string | null;
@@ -280,13 +278,13 @@ export interface AiResearchItem {
   description: string;
   unit: string;
   /** Total unit price (material + labor) without VAT — primary value for Образец 9.1 */
-  price_lv: number | null;
-  material_price_lv: number | null;
-  labor_price_lv: number | null;
-  /** Market floor — always strictly less than price_max_lv for a real range */
-  price_min_lv: number | null;
+  price_eur: number | null;
+  material_price_eur: number | null;
+  labor_price_eur: number | null;
+  /** Market floor — always strictly less than price_max_eur for a real range */
+  price_min_eur: number | null;
   /** Market ceiling */
-  price_max_lv: number | null;
+  price_max_eur: number | null;
   source_url: string;
   notes: string | null;
   confidence: number | null;
@@ -302,8 +300,8 @@ export interface KssSuggestion {
   description: string;
   unit: string;
   quantity: number;
-  unit_price_lv: number;
-  total_lv: number;
+  unit_price_eur: number;
+  total_eur: number;
   labor_price: number | null;
   material_price: number | null;
   confidence: number;

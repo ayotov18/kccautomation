@@ -46,18 +46,18 @@ pub fn generate_sectioned_kss_excel(report: &SectionedKssReport) -> Result<Vec<u
             if section.items.is_empty() { continue; }
             recap.write_string(r, 0, &section.number)?;
             recap.write_string(r, 1, &section.title_bg)?;
-            recap.write_number_with_format(r, 2, section.section_total_bgn, &money_fmt)?;
+            recap.write_number_with_format(r, 2, section.section_total_eur, &money_fmt)?;
             r += 1;
         }
         r += 1;
         recap.write_string_with_format(r, 1, "ОБЩО СМР без ДДС", &total_fmt)?;
-        recap.write_number_with_format(r, 2, report.subtotal_bgn, &total_fmt)?;
+        recap.write_number_with_format(r, 2, report.subtotal_eur, &total_fmt)?;
         r += 1;
         recap.write_string_with_format(r, 1, "ДДС", &total_fmt)?;
-        recap.write_number_with_format(r, 2, report.vat_bgn, &total_fmt)?;
+        recap.write_number_with_format(r, 2, report.vat_eur, &total_fmt)?;
         r += 1;
         recap.write_string_with_format(r, 1, "ОБЩО С ДДС", &grand_fmt)?;
-        recap.write_number_with_format(r, 2, report.total_with_vat_bgn, &grand_fmt)?;
+        recap.write_number_with_format(r, 2, report.total_with_vat_eur, &grand_fmt)?;
     }
 
     let sheet = workbook.add_worksheet();
@@ -114,7 +114,7 @@ pub fn generate_sectioned_kss_excel(report: &SectionedKssReport) -> Result<Vec<u
         sheet.write_string_with_format(row, 1, &section.title_bg, &section_fmt)?;
         sheet.write_number_with_format(row, 5, mat_total, &section_total_fmt)?;
         sheet.write_number_with_format(row, 6, lab_total, &section_total_fmt)?;
-        sheet.write_number_with_format(row, 7, section.section_total_bgn, &section_total_fmt)?;
+        sheet.write_number_with_format(row, 7, section.section_total_eur, &section_total_fmt)?;
         row += 1;
 
         // Section items
@@ -139,7 +139,7 @@ pub fn generate_sectioned_kss_excel(report: &SectionedKssReport) -> Result<Vec<u
 
     // Grand total
     row += 1;
-    let direct_cost = report.subtotal_bgn;
+    let direct_cost = report.subtotal_eur;
     sheet.write_string_with_format(row, 1, "ОБЩО:", &grand_total_label_fmt)?;
     sheet.write_number_with_format(row, 7, direct_cost, &grand_total_fmt)?;
     row += 1;

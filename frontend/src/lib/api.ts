@@ -336,11 +336,11 @@ class ApiClient {
     return this.request(`/prices/scraped${query ? `?${query}` : ''}`);
   }
 
-  async createPriceRow(data: { sek_code?: string; item_name: string; category?: string; unit?: string; price_min_lv?: number; price_max_lv?: number; price_min_eur?: number; price_max_eur?: number; notes?: string }): Promise<{ id: string }> {
+  async createPriceRow(data: { sek_code?: string; item_name: string; category?: string; unit?: string; price_min_eur?: number; price_max_eur?: number; notes?: string }): Promise<{ id: string }> {
     return this.request('/prices/rows', { method: 'POST', body: JSON.stringify(data) });
   }
 
-  async updatePriceRow(id: string, data: { sek_code?: string; item_name?: string; unit?: string; price_min_lv?: number; price_max_lv?: number; price_min_eur?: number; price_max_eur?: number; notes?: string }): Promise<void> {
+  async updatePriceRow(id: string, data: { sek_code?: string; item_name?: string; unit?: string; price_min_eur?: number; price_max_eur?: number; notes?: string }): Promise<void> {
     await this.request(`/prices/rows/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
@@ -435,14 +435,14 @@ class ApiClient {
     return this.request(`/reports/${drawingId}/kss/suggestions/${itemId}/reject`, { method: 'POST' });
   }
 
-  async addKssItem(drawingId: string, item: { sek_code: string; description: string; unit: string; quantity: number; unit_price_lv: number }): Promise<{ status: string; item_id: string }> {
+  async addKssItem(drawingId: string, item: { sek_code: string; description: string; unit: string; quantity: number; unit_price_eur: number }): Promise<{ status: string; item_id: string }> {
     return this.request(`/reports/${drawingId}/kss/items`, {
       method: 'POST',
       body: JSON.stringify(item),
     });
   }
 
-  async finalizeKss(drawingId: string): Promise<{ status: string; item_count: number; total_with_vat_bgn: number }> {
+  async finalizeKss(drawingId: string): Promise<{ status: string; item_count: number; total_with_vat_eur: number }> {
     return this.request(`/reports/${drawingId}/kss/finalize`, { method: 'POST' });
   }
 
@@ -517,8 +517,8 @@ class ApiClient {
   async listCorpus(opts?: { q?: string; limit?: number; offset?: number }): Promise<{
     rows: Array<{
       id: string; sek_code: string | null; description: string; unit: string;
-      quantity: number | null; material_price_lv: number | null;
-      labor_price_lv: number | null; total_unit_price_lv: number | null;
+      quantity: number | null; material_price_eur: number | null;
+      labor_price_eur: number | null; total_unit_price_eur: number | null;
       currency: string; source_sheet: string | null; source_row: number | null;
       import_id: string | null; created_at: string;
     }>;

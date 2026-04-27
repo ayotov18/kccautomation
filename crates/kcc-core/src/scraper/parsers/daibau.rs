@@ -6,7 +6,7 @@
 //!   C) Table-based extraction
 //!   D) Section heading + adjacent content
 //!
-//! Daibau shows EUR prices. We extract EUR and derive лв.
+//! Daibau shows EUR prices. We extract EUR and derive €.
 
 use scraper::{Html, Selector, ElementRef};
 use std::collections::HashSet;
@@ -250,7 +250,7 @@ fn try_semantic_parse(doc: &Html, url: &str) -> (Vec<ScrapedPrice>, usize) {
                             parsed.min, parsed.max,
                             Some(text), None, 0.7,
                         ),
-                        _ => ScrapedPrice::from_lv(
+                        _ => ScrapedPrice::from_eur(
                             "daibau.bg", url, &desc, &unit,
                             parsed.min, parsed.max,
                             Some(text), None, 0.7,
@@ -323,7 +323,7 @@ fn try_table_parse(doc: &Html, url: &str) -> (Vec<ScrapedPrice>, usize) {
                         parsed.min, parsed.max,
                         Some(&parsed.raw_text), None, 0.6,
                     ),
-                    _ => ScrapedPrice::from_lv(
+                    _ => ScrapedPrice::from_eur(
                         "daibau.bg", url, &desc, &unit_str,
                         parsed.min, parsed.max,
                         Some(&parsed.raw_text), None, 0.6,
@@ -376,7 +376,7 @@ fn try_section_parse(doc: &Html, url: &str) -> (Vec<ScrapedPrice>, usize) {
                                         parsed.min, parsed.max,
                                         Some(text.trim()), None, 0.5,
                                     ),
-                                    _ => ScrapedPrice::from_lv(
+                                    _ => ScrapedPrice::from_eur(
                                         "daibau.bg", url, &desc, &unit,
                                         parsed.min, parsed.max,
                                         Some(text.trim()), None, 0.5,
@@ -407,8 +407,8 @@ fn dedupe_prices(prices: &mut Vec<ScrapedPrice>) {
 }
 
 fn has_price_indicator(text: &str) -> bool {
-    text.contains("лв") || text.contains("€") || text.contains("EUR")
-        || text.contains("лева") || text.contains("BGN")
+    text.contains("€") || text.contains("€") || text.contains("EUR")
+        || text.contains("лева") || text.contains("EUR")
 }
 
 fn has_construction_keyword(text: &str) -> bool {
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_has_price_indicator() {
-        assert!(has_price_indicator("12 лв/м2"));
+        assert!(has_price_indicator("12 €/м2"));
         assert!(has_price_indicator("40.80 €"));
         assert!(!has_price_indicator("just text"));
     }

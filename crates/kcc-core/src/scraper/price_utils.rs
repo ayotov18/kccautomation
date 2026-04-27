@@ -1,6 +1,6 @@
 //! Shared price parsing utilities for Bulgarian construction pricing.
 //!
-//! Canonical currency: лв (BGN). EUR is derived.
+//! Canonical currency: € (EUR). EUR is derived.
 
 /// Parsed price result from text.
 #[derive(Debug, Clone)]
@@ -21,11 +21,11 @@ pub enum PriceCurrency {
 /// Parse a price range from Bulgarian construction text.
 ///
 /// Supports:
-/// - `12 - 18 лв`  /  `12–18 лв`  /  `12—18 лв`
-/// - `от 12 лв до 18 лв`  /  `от 12 до 18`
-/// - `12 лв`  (single price)
-/// - `12,50 лв`  /  `12.50 лв`
-/// - `12 лв/м2`  /  `12,50 лв / м2`
+/// - `12 - 18 €`  /  `12–18 €`  /  `12—18 €`
+/// - `от 12 € до 18 €`  /  `от 12 до 18`
+/// - `12 €`  (single price)
+/// - `12,50 €`  /  `12.50 €`
+/// - `12 €/м2`  /  `12,50 € / м2`
 /// - Same patterns with `€` / `EUR`
 pub fn parse_price_text(text: &str) -> Option<ParsedPrice> {
     let raw = text.trim().to_string();
@@ -131,7 +131,7 @@ fn try_single_price(lower: &str, currency: PriceCurrency, raw: &str) -> Option<P
 /// Detect currency from text.
 pub fn detect_currency(text: &str) -> PriceCurrency {
     let lower = text.to_lowercase();
-    if lower.contains("лв") || lower.contains("лев") || lower.contains("bgn") {
+    if lower.contains("€") || lower.contains("лев") || lower.contains("bgn") {
         PriceCurrency::Lv
     } else if lower.contains('€') || lower.contains("eur") {
         PriceCurrency::Eur
@@ -233,8 +233,8 @@ pub fn clean_description(desc: &str) -> String {
         .trim_start_matches("Цена, ")
         .trim_start_matches("Цена ")
         // Strip trailing price/unit text that leaked into description
-        .trim_end_matches("лв.")
-        .trim_end_matches("лв")
+        .trim_end_matches("€.")
+        .trim_end_matches("€")
         .trim_end_matches("лева")
         .trim();
 
@@ -291,8 +291,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_price_range_lv() {
-        let p = parse_price_text("12 - 18 лв").unwrap();
+    fn test_parse_price_range_eur() {
+        let p = parse_price_text("12 - 18 €").unwrap();
         assert_eq!(p.min, Some(12.0));
         assert_eq!(p.max, Some(18.0));
         assert_eq!(p.currency, PriceCurrency::Lv);
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_parse_price_ot_do() {
-        let p = parse_price_text("от 5.10 до 10.20 лв/м2").unwrap();
+        let p = parse_price_text("от 5.10 до 10.20 €/м2").unwrap();
         assert_eq!(p.min, Some(5.10));
         assert_eq!(p.max, Some(10.20));
         assert_eq!(p.currency, PriceCurrency::Lv);
@@ -315,8 +315,8 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_single_price_lv() {
-        let p = parse_price_text("12,50 лв").unwrap();
+    fn test_parse_single_price_eur() {
+        let p = parse_price_text("12,50 €").unwrap();
         assert_eq!(p.min, Some(12.50));
         assert_eq!(p.max, Some(12.50));
     }
@@ -328,9 +328,9 @@ mod tests {
 
     #[test]
     fn test_extract_unit() {
-        assert_eq!(extract_unit("12 лв/м2"), Some("М2".to_string()));
-        assert_eq!(extract_unit("100 лв/бр"), Some("бр.".to_string()));
-        assert_eq!(extract_unit("50 лв/кг"), Some("кг".to_string()));
+        assert_eq!(extract_unit("12 €/м2"), Some("М2".to_string()));
+        assert_eq!(extract_unit("100 €/бр"), Some("бр.".to_string()));
+        assert_eq!(extract_unit("50 €/кг"), Some("кг".to_string()));
     }
 
     #[test]

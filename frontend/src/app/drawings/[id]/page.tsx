@@ -154,7 +154,7 @@ export default function DrawingOverviewPage() {
                   <span className="mx-1.5 opacity-40">·</span>
                   Total{' '}
                   <span className="font-numeric">
-                    {((kss.total_with_vat_lv as number) ?? 0).toFixed(2)} €
+                    {((kss.total_with_vat_eur as number) ?? 0).toFixed(2)} €
                   </span>{' '}
                   inc. VAT
                 </p>

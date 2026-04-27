@@ -106,7 +106,7 @@ async fn submit_corrections(
                     "UPDATE kss_line_items SET
                         sek_code = $2, description = $3, unit = $4, quantity = $5,
                         labor_price = $6, material_price = $7,
-                        unit_price_lv = $8, total_lv = $9,
+                        unit_price_eur = $8, total_eur = $9,
                         provenance = 'user_correction', confidence = 1.0
                      WHERE id = $1"
                 )
@@ -223,7 +223,7 @@ async fn rebuild_report_snapshot(
 
     let rows: Vec<(String, String, String, f64, f64, f64, f64, f64, String, String)> = sqlx::query_as(
         "SELECT sek_code, description, unit, quantity, labor_price, material_price,
-                COALESCE(unit_price_lv, 0), COALESCE(total_lv, 0),
+                COALESCE(unit_price_eur, 0), COALESCE(total_eur, 0),
                 COALESCE(reasoning, ''), COALESCE(provenance, 'rule_based')
          FROM kss_line_items
          WHERE report_id = $1 AND (suggestion_status IS NULL OR suggestion_status != 'rejected')
@@ -268,16 +268,16 @@ async fn rebuild_report_snapshot(
     sqlx::query(
         "UPDATE kss_reports
          SET report_data = $1,
-             subtotal_lv = $2,
-             vat_lv = $3,
-             total_with_vat_lv = $4,
+             subtotal_eur = $2,
+             vat_eur = $3,
+             total_with_vat_eur = $4,
              item_count = $5
          WHERE id = $6"
     )
     .bind(&json)
-    .bind(sectioned.subtotal_bgn)
-    .bind(sectioned.vat_bgn)
-    .bind(sectioned.total_with_vat_bgn)
+    .bind(sectioned.subtotal_eur)
+    .bind(sectioned.vat_eur)
+    .bind(sectioned.total_with_vat_eur)
     .bind(sectioned.sections.iter().map(|s| s.items.len() as i32).sum::<i32>())
     .bind(report_id)
     .execute(db)

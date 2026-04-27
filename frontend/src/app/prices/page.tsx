@@ -35,7 +35,7 @@ export default function PricesPage() {
 
   // Add price modal
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ sek_code: '', item_name: '', unit: 'М2', price_min_lv: '', price_max_lv: '', notes: '' });
+  const [addForm, setAddForm] = useState({ sek_code: '', item_name: '', unit: 'М2', price_min_eur: '', price_max_eur: '', notes: '' });
 
   // Scraping state
   const [scraping, setScraping] = useState(false);
@@ -167,12 +167,12 @@ export default function PricesPage() {
         sek_code: addForm.sek_code || undefined,
         item_name: addForm.item_name,
         unit: addForm.unit || undefined,
-        price_min_lv: addForm.price_min_lv ? parseFloat(addForm.price_min_lv) : undefined,
-        price_max_lv: addForm.price_max_lv ? parseFloat(addForm.price_max_lv) : undefined,
+        price_min_eur: addForm.price_min_eur ? parseFloat(addForm.price_min_eur) : undefined,
+        price_max_eur: addForm.price_max_eur ? parseFloat(addForm.price_max_eur) : undefined,
         notes: addForm.notes || undefined,
       });
       setShowAddModal(false);
-      setAddForm({ sek_code: '', item_name: '', unit: 'М2', price_min_lv: '', price_max_lv: '', notes: '' });
+      setAddForm({ sek_code: '', item_name: '', unit: 'М2', price_min_eur: '', price_max_eur: '', notes: '' });
       fetchScrapedPrices(0);
     } catch { /* */ }
   };
@@ -410,8 +410,8 @@ export default function PricesPage() {
                       <td className="px-3 py-2">{p.item_name}</td>
                       <td className="px-3 py-2 text-content-secondary">{p.unit || '-'}</td>
                       <td className="px-3 py-2">
-                        {p.price_min_lv != null && p.price_max_lv != null
-                          ? `${p.price_min_lv.toFixed(2)} - ${p.price_max_lv.toFixed(2)} €`
+                        {p.price_min_eur != null && p.price_max_eur != null
+                          ? `${p.price_min_eur.toFixed(2)} - ${p.price_max_eur.toFixed(2)} €`
                           : '-'}
                       </td>
                       <td className="px-3 py-2 text-content-tertiary text-xs">
@@ -482,11 +482,11 @@ export default function PricesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-content-secondary mb-1">Мин. цена (€)</label>
-                  <input type="number" step="0.01" value={addForm.price_min_lv} onChange={e => setAddForm(f => ({...f, price_min_lv: e.target.value}))} className="w-full px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm" />
+                  <input type="number" step="0.01" value={addForm.price_min_eur} onChange={e => setAddForm(f => ({...f, price_min_eur: e.target.value}))} className="w-full px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs text-content-secondary mb-1">Макс. цена (€)</label>
-                  <input type="number" step="0.01" value={addForm.price_max_lv} onChange={e => setAddForm(f => ({...f, price_max_lv: e.target.value}))} className="w-full px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm" />
+                  <input type="number" step="0.01" value={addForm.price_max_eur} onChange={e => setAddForm(f => ({...f, price_max_eur: e.target.value}))} className="w-full px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm" />
                 </div>
               </div>
               <div>

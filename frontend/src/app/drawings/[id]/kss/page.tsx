@@ -44,7 +44,7 @@ interface KssStructure {
   index: number;
   label: string;
   bbox: [number, number, number, number];
-  subtotal_lv: number;
+  subtotal_eur: number;
   line_count: number;
 }
 
@@ -53,7 +53,7 @@ interface KssSection {
   title_bg: string;
   sek_group: string;
   items: KssItem[];
-  section_total_bgn: number;
+  section_total_eur: number;
 }
 
 export default function KssReportPage() {
@@ -370,7 +370,7 @@ export default function KssReportPage() {
     );
   }
 
-  const subtotal = report.subtotal_lv as number ?? 0;
+  const subtotal = report.subtotal_eur as number ?? 0;
 
   // When a single module is active, derive a filtered section list whose
   // per-section subtotal reflects only that module's items. The "all" tab
@@ -381,15 +381,15 @@ export default function KssReportPage() {
     return sections
       .map((sec) => {
         const items = sec.items.filter((it) => it.structure_id === activeStructure);
-        const section_total_bgn = items.reduce((s, it) => s + (it.total_price || 0), 0);
-        return { ...sec, items, section_total_bgn };
+        const section_total_eur = items.reduce((s, it) => s + (it.total_price || 0), 0);
+        return { ...sec, items, section_total_eur };
       })
       .filter((sec) => sec.items.length > 0);
   })();
   const displayedSubtotal =
     activeStructure === 'all' || structures.length <= 1
       ? subtotal
-      : structures.find((s) => s.id === activeStructure)?.subtotal_lv ?? 0;
+      : structures.find((s) => s.id === activeStructure)?.subtotal_eur ?? 0;
 
   return (
     <div className="oe-fade-in">
@@ -712,7 +712,7 @@ function ScrollableSections({
             number={section.number}
             title={section.title_bg}
             itemCount={section.items.length}
-            total={section.section_total_bgn}
+            total={section.section_total_eur}
             isOpen={openGroups.has(section.sek_group)}
             onToggle={() => onToggleGroup(section.sek_group)}
           >
@@ -738,7 +738,7 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
   onEdit: (si: number, ii: number, field: string, value: string | number) => void;
   drawingId: string; isAdding: boolean; onToggleAdd: () => void; onItemAdded: () => void;
 }) {
-  const [newItem, setNewItem] = useState({ sek_code: '', description: '', unit: 'М2', quantity: 0, unit_price_lv: 0 });
+  const [newItem, setNewItem] = useState({ sek_code: '', description: '', unit: 'М2', quantity: 0, unit_price_eur: 0 });
   const [addingSaving, setAddingSaving] = useState(false);
 
   const handleAddSave = async () => {
@@ -746,7 +746,7 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
     setAddingSaving(true);
     try {
       await api.addKssItem(drawingId, { ...newItem, sek_code: newItem.sek_code || `${section.sek_group}.999` });
-      setNewItem({ sek_code: '', description: '', unit: 'М2', quantity: 0, unit_price_lv: 0 });
+      setNewItem({ sek_code: '', description: '', unit: 'М2', quantity: 0, unit_price_eur: 0 });
       onItemAdded();
     } catch { /* */ }
     setAddingSaving(false);
@@ -836,7 +836,7 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
               {section.items.reduce((s, i) => s + i.labor_price * i.quantity, 0).toFixed(2)}
             </td>
             <td className="px-3 py-1.5 text-right font-medium text-content-primary font-mono">
-              {section.section_total_bgn.toFixed(2)}
+              {section.section_total_eur.toFixed(2)}
             </td>
           </tr>
         </tfoot>
@@ -1003,7 +1003,7 @@ function ModuleTabStrip({
               <>
                 {s.label}
                 <span className="ml-2 text-[10px] text-content-tertiary">
-                  {s.line_count} поз. · {s.subtotal_lv.toFixed(0)} €
+                  {s.line_count} поз. · {s.subtotal_eur.toFixed(0)} €
                 </span>
               </>
             )}

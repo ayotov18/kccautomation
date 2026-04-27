@@ -211,13 +211,13 @@ export default function AiKssPrepare() {
               </thead>
               <tbody>
                 {groupItems.map(item => {
-                  const total = item.price_lv ?? (
-                    (item.material_price_lv ?? 0) + (item.labor_price_lv ?? 0)
+                  const total = item.price_eur ?? (
+                    (item.material_price_eur ?? 0) + (item.labor_price_eur ?? 0)
                   );
                   const hasRange =
-                    item.price_min_lv != null &&
-                    item.price_max_lv != null &&
-                    item.price_min_lv < item.price_max_lv;
+                    item.price_min_eur != null &&
+                    item.price_max_eur != null &&
+                    item.price_min_eur < item.price_max_eur;
                   return (
                     <tr key={item.id} className={`border-b border-border-light/30 ${!item.approved ? 'opacity-40' : ''} ${item.edited ? 'bg-sky-900/10' : ''}`}>
                       <td className="px-4 py-2">
@@ -242,8 +242,8 @@ export default function AiKssPrepare() {
                         <input
                           type="number"
                           step="0.01"
-                          value={item.material_price_lv ?? ''}
-                          onChange={e => handleEdit(item.id, 'material_price_lv', e.target.value)}
+                          value={item.material_price_eur ?? ''}
+                          onChange={e => handleEdit(item.id, 'material_price_eur', e.target.value)}
                           className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-sky-200 font-mono"
                         />
                       </td>
@@ -251,8 +251,8 @@ export default function AiKssPrepare() {
                         <input
                           type="number"
                           step="0.01"
-                          value={item.labor_price_lv ?? ''}
-                          onChange={e => handleEdit(item.id, 'labor_price_lv', e.target.value)}
+                          value={item.labor_price_eur ?? ''}
+                          onChange={e => handleEdit(item.id, 'labor_price_eur', e.target.value)}
                           className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-sky-200 font-mono"
                         />
                       </td>
@@ -261,7 +261,7 @@ export default function AiKssPrepare() {
                       </td>
                       <td className="px-4 py-2 text-right text-content-tertiary text-xs font-mono">
                         {hasRange
-                          ? `${item.price_min_lv!.toFixed(0)}–${item.price_max_lv!.toFixed(0)}`
+                          ? `${item.price_min_eur!.toFixed(0)}–${item.price_max_eur!.toFixed(0)}`
                           : '—'}
                       </td>
                       <td className="px-4 py-2">

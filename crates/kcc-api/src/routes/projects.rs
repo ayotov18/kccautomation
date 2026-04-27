@@ -43,7 +43,7 @@ async fn create_project(
     Extension(user_id): Extension<Uuid>,
     Json(body): Json<CreateProjectRequest>,
 ) -> Result<Json<ProjectRow>, ApiError> {
-    let currency = body.currency.unwrap_or_else(|| "BGN".to_string());
+    let currency = body.currency.unwrap_or_else(|| "EUR".to_string());
 
     let project = sqlx::query_as::<_, ProjectRow>(
         r#"INSERT INTO projects (id, user_id, name, description, client, location, currency, status, created_at, updated_at)

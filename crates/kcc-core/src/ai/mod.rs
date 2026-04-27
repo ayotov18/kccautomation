@@ -518,9 +518,9 @@ pub struct AiKssResponse {
     #[serde(default)]
     pub total_items: usize,
     #[serde(default)]
-    pub construction_subtotal_lv: f64,
+    pub construction_subtotal_eur: f64,
     #[serde(default)]
-    pub total_lv: f64,
+    pub total_eur: f64,
     #[serde(default)]
     pub drawing_type: String,
     #[serde(default)]
@@ -557,12 +557,12 @@ pub struct AiKssItem {
     pub unit: String,
     pub quantity: f64,
     #[serde(default)]
-    pub material_price_lv: f64,
+    pub material_price_eur: f64,
     #[serde(default)]
-    pub labor_price_lv: f64,
-    /// Total = (material + labor) × quantity. Fallback: price_lv × quantity
+    pub labor_price_eur: f64,
+    /// Total = (material + labor) × quantity. Fallback: price_eur × quantity
     #[serde(default)]
-    pub price_lv: f64,
+    pub price_eur: f64,
     pub confidence: f64,
     pub reasoning: String,
 

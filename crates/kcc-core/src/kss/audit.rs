@@ -161,7 +161,7 @@ impl KssAuditTrail {
         let p5 = &self.phase5_generation;
         let mut highlights = Vec::new();
         highlights.push(format!("Mode: {}", p5.mode));
-        highlights.push(format!("Rule-based: {} items ({:.2} лв)", p5.rule_based_items, p5.rule_based_total_lv));
+        highlights.push(format!("Rule-based: {} items ({:.2} €)", p5.rule_based_items, p5.rule_based_total_eur));
         if p5.ai_enabled {
             highlights.push(format!("AI: {} generated, {} validated", p5.ai_items_generated, p5.ai_items_validated));
             if !p5.ai_rejection_reasons.is_empty() {
@@ -192,12 +192,12 @@ impl KssAuditTrail {
             phase_name: "Final Report".into(),
             duration_ms: self.phase_duration("report"),
             summary: format!(
-                "{} items across {} sections. Total: {:.2} лв (incl. VAT).",
-                p6.total_items, p6.total_sections, p6.total_with_vat_bgn,
+                "{} items across {} sections. Total: {:.2} € (incl. VAT).",
+                p6.total_items, p6.total_sections, p6.total_with_vat_eur,
             ),
             highlights: vec![
-                format!("Subtotal: {:.2} лв", p6.subtotal_bgn),
-                format!("VAT: {:.2} лв", p6.vat_bgn),
+                format!("Subtotal: {:.2} €", p6.subtotal_eur),
+                format!("VAT: {:.2} €", p6.vat_eur),
                 format!("DRM artifacts recorded: {}", p6.drm_artifacts_recorded),
             ],
         });
@@ -262,9 +262,9 @@ pub struct StructureAudit {
     /// Number of KSS line items generated for this module.
     #[serde(default)]
     pub line_item_count: usize,
-    /// Subtotal in лв for this module's line items (before VAT/overhead).
+    /// Subtotal in € for this module's line items (before VAT/overhead).
     #[serde(default)]
-    pub subtotal_lv: f64,
+    pub subtotal_eur: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -373,7 +373,7 @@ pub struct PriceResearchAudit {
 pub struct GenerationAudit {
     pub mode: String,
     pub rule_based_items: usize,
-    pub rule_based_total_lv: f64,
+    pub rule_based_total_eur: f64,
     pub ai_enabled: bool,
     pub ai_prompt_system_preview: String,
     pub ai_prompt_user_preview: String,
@@ -429,9 +429,9 @@ pub struct MergeDecisionAudit {
 pub struct ReportAudit {
     pub total_items: usize,
     pub total_sections: usize,
-    pub subtotal_bgn: f64,
-    pub vat_bgn: f64,
-    pub total_with_vat_bgn: f64,
+    pub subtotal_eur: f64,
+    pub vat_eur: f64,
+    pub total_with_vat_eur: f64,
     pub drm_artifacts_recorded: usize,
     pub reports_generated: Vec<String>,
 }

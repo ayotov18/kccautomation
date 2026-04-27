@@ -153,18 +153,18 @@ pub async fn process_scrape_job(job: ScrapeJob, ctx: &WorkerContext) -> Result<(
                     "{}|{}|{:?}|{:?}",
                     m.scraped.description_bg.to_lowercase().trim(),
                     m.scraped.unit.to_lowercase(),
-                    m.scraped.price_min_lv.map(|v| (v * 100.0) as i64),
-                    m.scraped.price_max_lv.map(|v| (v * 100.0) as i64),
+                    m.scraped.price_min_eur.map(|v| (v * 100.0) as i64),
+                    m.scraped.price_max_eur.map(|v| (v * 100.0) as i64),
                 );
                 seen_keys.insert(key)
             }).collect();
 
-            // PERSIST TO DB with lv/eur columns
+            // PERSIST TO DB. Currency is always EUR (canonical post-025).
             let mut rows_written = 0i32;
             for m in &deduped {
                 let result = sqlx::query(
-                    "INSERT INTO scraped_price_rows (scrape_source_run_id, user_id, site, source_url, category_slug, item_name, unit, price_min, price_max, price_avg, price_min_lv, price_max_lv, price_min_eur, price_max_eur, currency, raw_price_text, sek_code, sek_group, mapping_confidence, extraction_confidence, extraction_strategy)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)",
+                    "INSERT INTO scraped_price_rows (scrape_source_run_id, user_id, site, source_url, category_slug, item_name, unit, price_min, price_max, price_avg, price_min_eur, price_max_eur, currency, raw_price_text, sek_code, sek_group, mapping_confidence, extraction_confidence, extraction_strategy)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)",
                 )
                 .bind(source_run_id)
                 .bind(user_id)
@@ -173,14 +173,12 @@ pub async fn process_scrape_job(job: ScrapeJob, ctx: &WorkerContext) -> Result<(
                 .bind(&m.scraped.category)
                 .bind(&m.scraped.description_bg)
                 .bind(&m.scraped.unit)
-                .bind(m.scraped.price_min_lv) // legacy price_min = lv
-                .bind(m.scraped.price_max_lv) // legacy price_max = lv
-                .bind(m.scraped.price_avg_lv()) // legacy price_avg = lv
-                .bind(m.scraped.price_min_lv)
-                .bind(m.scraped.price_max_lv)
                 .bind(m.scraped.price_min_eur)
                 .bind(m.scraped.price_max_eur)
-                .bind(&m.scraped.currency)
+                .bind(m.scraped.price_avg_eur())
+                .bind(m.scraped.price_min_eur)
+                .bind(m.scraped.price_max_eur)
+                .bind("EUR")
                 .bind(&m.scraped.raw_price_text)
                 .bind(&m.sek_code)
                 .bind(&m.sek_group)
@@ -233,18 +231,16 @@ pub async fn process_scrape_job(job: ScrapeJob, ctx: &WorkerContext) -> Result<(
                         for price in &ai_prices {
                             let sek_group = price.category.as_deref().unwrap_or("");
                             let _ = sqlx::query(
-                                "INSERT INTO scraped_price_rows (user_id, site, source_url, item_name, unit, price_min, price_max, price_avg, price_min_lv, price_max_lv, price_min_eur, price_max_eur, currency, sek_group, mapping_confidence, extraction_confidence, extraction_strategy)
-                                 VALUES ($1, 'ai_research', $2, $3, $4, $5, $6, $7, $5, $6, $8, $9, 'lv', $10, 0.8, $11, 'ai_web_search')"
+                                "INSERT INTO scraped_price_rows (user_id, site, source_url, item_name, unit, price_min, price_max, price_avg, price_min_eur, price_max_eur, currency, sek_group, mapping_confidence, extraction_confidence, extraction_strategy)
+                                 VALUES ($1, 'ai_research', $2, $3, $4, $5, $6, $7, $5, $6, 'EUR', $8, 0.8, $9, 'ai_web_search')"
                             )
                             .bind(user_id)
                             .bind(&price.source_url)
                             .bind(&price.description_bg)
                             .bind(&price.unit)
-                            .bind(price.price_min_lv)
-                            .bind(price.price_max_lv)
-                            .bind(price.price_avg_lv())
                             .bind(price.price_min_eur)
                             .bind(price.price_max_eur)
+                            .bind(price.price_avg_eur())
                             .bind(sek_group)
                             .bind(price.extraction_confidence)
                             .execute(&ctx.db)

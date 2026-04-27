@@ -30,13 +30,13 @@ const SEK_CATEGORIES: &[(&str, &str, &str)] = &[
 ];
 
 const RESEARCH_SYSTEM_PROMPT: &str = r#"You are a Bulgarian construction price researcher.
-You search the web for current construction work prices in Bulgaria (in лв/BGN).
+You search the web for current construction work prices in Bulgaria (in €/EUR).
 
 For each price you find from the web search results, extract:
 - description: work item description in Bulgarian
 - unit: measurement unit (М2, М3, м, бр., кг, тон)
-- price_min_lv: minimum price in лв (BGN)
-- price_max_lv: maximum price in лв (BGN)
+- price_min_eur: minimum price in € (EUR)
+- price_max_eur: maximum price in € (EUR)
 - sek_code: СЕК code if identifiable (e.g., "СЕК05.002")
 - source_url: the URL where you found this price
 - confidence: 0.0-1.0 how certain you are this price is accurate
@@ -44,8 +44,8 @@ For each price you find from the web search results, extract:
 RULES:
 1. Only include prices that are CLEARLY stated in the search results
 2. Do NOT guess or interpolate prices
-3. Prices should be in лв (BGN), not EUR
-4. If price is in EUR, convert at 1.956 лв/€
+3. Prices should be in € (EUR), not EUR
+4. If price is in EUR, convert at 1.956 €/€
 5. Include both labor and material prices where available
 6. Current 2024-2026 prices only
 
@@ -55,8 +55,8 @@ Output valid JSON:
     {
       "description": "...",
       "unit": "М2",
-      "price_min_lv": 12.0,
-      "price_max_lv": 18.0,
+      "price_min_eur": 12.0,
+      "price_max_eur": 18.0,
       "sek_code": "СЕК10.011",
       "source_url": "https://...",
       "confidence": 0.9
@@ -77,8 +77,8 @@ pub struct PriceResearchAgent<'a> {
 struct AiResearchedPrice {
     description: String,
     unit: String,
-    price_min_lv: Option<f64>,
-    price_max_lv: Option<f64>,
+    price_min_eur: Option<f64>,
+    price_max_eur: Option<f64>,
     sek_code: Option<String>,
     source_url: Option<String>,
     confidence: Option<f64>,
@@ -155,7 +155,7 @@ impl<'a> PriceResearchAgent<'a> {
             "Search for current Bulgarian construction prices for:\n\
              Category: {} ({})\n\
              Example items: {}\n\n\
-             Find 5-15 specific price items with unit prices in лв (BGN).\n\
+             Find 5-15 specific price items with unit prices in € (EUR).\n\
              Focus on labor + material combined rates.\n\
              Search on Bulgarian sites: daibau.bg, stroitelni-remonti.com, homefix.bg",
             category_name_bg, sek_group, examples
@@ -186,14 +186,14 @@ impl<'a> PriceResearchAgent<'a> {
         let prices: Vec<ScrapedPrice> = response.prices.into_iter()
             .filter(|p| {
                 !p.description.is_empty()
-                    && (p.price_min_lv.is_some() || p.price_max_lv.is_some())
+                    && (p.price_min_eur.is_some() || p.price_max_eur.is_some())
             })
             .map(|p| {
-                let min = p.price_min_lv;
-                let max = p.price_max_lv.or(min);
+                let min = p.price_min_eur;
+                let max = p.price_max_eur.or(min);
                 let min = min.or(max);
 
-                ScrapedPrice::from_lv(
+                ScrapedPrice::from_eur(
                     "ai_research",
                     p.source_url.as_deref().unwrap_or("https://openrouter.ai"),
                     &p.description,

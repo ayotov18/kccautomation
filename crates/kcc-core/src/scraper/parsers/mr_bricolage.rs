@@ -5,7 +5,7 @@
 //!   B) Embedded JS product state
 //!   C) Product card DOM extraction
 //!
-//! Mr.Bricolage shows prices in лв (BGN). Canonical storage.
+//! Mr.Bricolage shows prices in € (EUR). Canonical storage.
 
 use scraper::{Html, Selector};
 
@@ -144,12 +144,12 @@ fn extract_jsonld_products(json: &serde_json::Value, url: &str, prices: &mut Vec
                     let currency = offers.get("priceCurrency")
                         .or_else(|| offers.get("currency"))
                         .and_then(|v| v.as_str())
-                        .unwrap_or("BGN");
+                        .unwrap_or("EUR");
 
                     if let Some(p) = price {
-                        let is_bgn = currency == "BGN" || currency == "лв" || currency == "lv";
-                        let sp = if is_bgn {
-                            ScrapedPrice::from_lv("mr-bricolage.bg", url, name, "бр.", Some(p), Some(p), None, None, 1.0)
+                        let is_eur = currency == "EUR" || currency == "€" || currency == "lv";
+                        let sp = if is_eur {
+                            ScrapedPrice::from_eur("mr-bricolage.bg", url, name, "бр.", Some(p), Some(p), None, None, 1.0)
                         } else {
                             ScrapedPrice::from_eur("mr-bricolage.bg", url, name, "бр.", Some(p), Some(p), None, None, 1.0)
                         };
@@ -308,7 +308,7 @@ fn extract_products_from_json(val: &serde_json::Value, url: &str, prices: &mut V
 
             if let (Some(name), Some(price)) = (name, price) {
                 if name.len() > 3 && price > 0.0 {
-                    prices.push(ScrapedPrice::from_lv(
+                    prices.push(ScrapedPrice::from_eur(
                         "mr-bricolage.bg", url, name, "бр.",
                         Some(price), Some(price),
                         None, None, 0.8,
@@ -383,7 +383,7 @@ fn try_product_card_parse(doc: &Html, url: &str) -> (Vec<ScrapedPrice>, usize) {
             let price_val = extract_bgn_price(&price_text);
             if let Some(p) = price_val {
                 if p > 0.0 && name.len() > 3 {
-                    prices.push(ScrapedPrice::from_lv(
+                    prices.push(ScrapedPrice::from_eur(
                         "mr-bricolage.bg", url,
                         &name, "бр.",
                         Some(p), Some(p),
@@ -417,12 +417,12 @@ fn try_extract_text(parent: &scraper::ElementRef, selectors: &[&str]) -> String 
     String::new()
 }
 
-/// Extract a BGN price from text like "12.50 лв.", "12,50 лв", "12.50".
+/// Extract a EUR price from text like "12.50 €.", "12,50 €", "12.50".
 fn extract_bgn_price(text: &str) -> Option<f64> {
     let cleaned = text
-        .replace("лв.", "")
-        .replace("лв", "")
-        .replace("BGN", "")
+        .replace("€.", "")
+        .replace("€", "")
+        .replace("EUR", "")
         .replace('\u{a0}', "")
         .replace(' ', "")
         .replace(',', ".")
@@ -444,10 +444,10 @@ mod tests {
 
     #[test]
     fn test_extract_bgn_price() {
-        assert_eq!(extract_bgn_price("12.50 лв."), Some(12.50));
-        assert_eq!(extract_bgn_price("12,50 лв"), Some(12.50));
-        assert_eq!(extract_bgn_price("3.82лв."), Some(3.82));
-        assert_eq!(extract_bgn_price("1\u{a0}234.56 лв"), Some(1234.56));
+        assert_eq!(extract_bgn_price("12.50 €."), Some(12.50));
+        assert_eq!(extract_bgn_price("12,50 €"), Some(12.50));
+        assert_eq!(extract_bgn_price("3.82€."), Some(3.82));
+        assert_eq!(extract_bgn_price("1\u{a0}234.56 €"), Some(1234.56));
     }
 
     #[test]
@@ -457,14 +457,14 @@ mod tests {
             "name": "Цимент ЦЕМ I 42.5R 25кг",
             "offers": {
                 "price": "8.99",
-                "priceCurrency": "BGN"
+                "priceCurrency": "EUR"
             }
         });
         let mut prices = Vec::new();
         extract_jsonld_products(&json, "https://test.com", &mut prices);
         assert_eq!(prices.len(), 1);
         assert_eq!(prices[0].description_bg, "Цимент ЦЕМ I 42.5R 25кг");
-        assert_eq!(prices[0].price_min_lv, Some(8.99));
+        assert_eq!(prices[0].price_min_eur, Some(8.99));
         assert_eq!(prices[0].currency, "lv");
     }
 }

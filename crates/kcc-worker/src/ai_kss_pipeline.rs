@@ -228,13 +228,13 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
          the single number a Bulgarian contractor would quote to a client on Образец 9.1.\n\
          2. Do NOT return labor-only or material-only prices. If a source gives only one, \
          combine it with typical market labor/material for that work.\n\
-         3. Provide FOUR numeric prices per item: material_price_lv, labor_price_lv, \
-         price_min_lv (market floor), price_max_lv (market ceiling). \
-         Invariant: price_min_lv ≤ material_price_lv + labor_price_lv ≤ price_max_lv. \
-         price_min_lv must be strictly less than price_max_lv (a real range, not a single value).\n\
+         3. Provide FOUR numeric prices per item: material_price_eur, labor_price_eur, \
+         price_min_eur (market floor), price_max_eur (market ceiling). \
+         Invariant: price_min_eur ≤ material_price_eur + labor_price_eur ≤ price_max_eur. \
+         price_min_eur must be strictly less than price_max_eur (a real range, not a single value).\n\
          4. Provide source_url (direct link to the page where this price was confirmed). \
          Prefer 2+ sources averaged; cite the most representative one.\n\
-         5. All prices in {currency_code} without ДДС. If source is in a different currency, convert (1 EUR = 1.95583 лв).\n\
+         5. All prices in {currency_code} without ДДС. If source is in a different currency, convert (1 EUR = 1.95583 €).\n\
          6. Current 2025-2026 prices only. Reject outdated data.\n\n\
          ===== QUANTITY / CONSUMPTION NORMS (use these to validate your material & labor per unit) =====\n\
          {quantity_norms_block}\n\
@@ -243,7 +243,7 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
          - Labor hours below are from Bulgarian УСН / АТС Прес. Convert to labor cost using the labor band for that trade.\n\
          - If you lack a norm for an item, state confidence ≤ 0.65 and derive conservatively from market tender averages.\n\n\
          ===== SANITY ANCHORS (reject any item whose total falls outside these bands) =====\n\
-         (Bands below are in EUR per unit; scale proportionally if currency is BGN.)\n\
+         (Bands below are in EUR per unit; scale proportionally if currency is EUR.)\n\
          - Газобетонна зидария 25см: 18–33 €/М2 total (material 10–18, labor 8–13)\n\
          - Тухлена зидария 25см: 20–36 €/М2 total (material 11–20, labor 9–15)\n\
          - Вътрешна варо-циментова мазилка: 5–11 €/М2 total\n\
@@ -278,10 +278,10 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
                    \"sek_code\": \"СЕК05.007\",\n\
                    \"description\": \"Доставка и монтаж газобетонна зидария 25см\",\n\
                    \"unit\": \"М2\",\n\
-                   \"material_price_lv\": 14.0,\n\
-                   \"labor_price_lv\": 10.0,\n\
-                   \"price_min_lv\": 20.0,\n\
-                   \"price_max_lv\": 30.0,\n\
+                   \"material_price_eur\": 14.0,\n\
+                   \"labor_price_eur\": 10.0,\n\
+                   \"price_min_eur\": 20.0,\n\
+                   \"price_max_eur\": 30.0,\n\
                    \"source_url\": \"https://daibau.bg/ceni/gazobeton\",\n\
                    \"confidence\": 0.85,\n\
                    \"notes\": \"Средна пазарна цена от 3 източника\"\n\
@@ -295,7 +295,7 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
              \"delivery_storage_rate_pct\": {delivery},\n\
              \"profit_rate_pct\": {profit}\n\
            }},\n\
-           \"transport_lv\": {transport}\n\
+           \"transport_eur\": {transport}\n\
          }}\n\n\
          Return 10-20 items minimum, grouped by СЕК group. Every item MUST have all four price fields AND a source_url.",
         contg = defaults.contingency_pct,
@@ -319,7 +319,7 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
         .timeout(std::time::Duration::from_secs(120))
         .build()?;
 
-    let system_prompt = "You are a Bulgarian construction price researcher. Search the web for current construction work prices in Bulgaria (лв/BGN). Output ONLY valid JSON — no markdown fences, no explanation outside JSON.";
+    let system_prompt = "You are a Bulgarian construction price researcher. Search the web for current construction work prices in Bulgaria (€/EUR). Output ONLY valid JSON — no markdown fences, no explanation outside JSON.";
 
     let perplexity_body = serde_json::json!({
         "model": PERPLEXITY_MODEL,
@@ -430,11 +430,11 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
 
                     // Read each priced field. Missing min/max become a ±15% synthetic
                     // range around the total so the UI never shows Min == Max.
-                    let mat_price = item.get("material_price_lv").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let lab_price = item.get("labor_price_lv").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let mat_price = item.get("material_price_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let lab_price = item.get("labor_price_eur").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let total = mat_price + lab_price;
-                    let price_min_raw = item.get("price_min_lv").and_then(|v| v.as_f64());
-                    let price_max_raw = item.get("price_max_lv").and_then(|v| v.as_f64());
+                    let price_min_raw = item.get("price_min_eur").and_then(|v| v.as_f64());
+                    let price_max_raw = item.get("price_max_eur").and_then(|v| v.as_f64());
                     let (price_min, price_max) = match (price_min_raw, price_max_raw) {
                         (Some(lo), Some(hi)) if lo < hi => (lo, hi),
                         (Some(lo), Some(hi)) if lo >= hi && total > 0.0 => {
@@ -454,11 +454,11 @@ async fn run_research_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> {
                         .arg("sek_code").arg(item.get("sek_code").and_then(|s| s.as_str()).unwrap_or(""))
                         .arg("description").arg(item.get("description").and_then(|s| s.as_str()).unwrap_or(""))
                         .arg("unit").arg(item.get("unit").and_then(|s| s.as_str()).unwrap_or("М2"))
-                        .arg("material_price_lv").arg(mat_price.to_string())
-                        .arg("labor_price_lv").arg(lab_price.to_string())
-                        .arg("price_lv").arg(total.to_string())
-                        .arg("price_min_lv").arg(price_min.to_string())
-                        .arg("price_max_lv").arg(price_max.to_string())
+                        .arg("material_price_eur").arg(mat_price.to_string())
+                        .arg("labor_price_eur").arg(lab_price.to_string())
+                        .arg("price_eur").arg(total.to_string())
+                        .arg("price_min_eur").arg(price_min.to_string())
+                        .arg("price_max_eur").arg(price_max.to_string())
                         .arg("source_url").arg(item.get("source_url").and_then(|s| s.as_str()).unwrap_or(""))
                         .arg("notes").arg(notes)
                         .arg("confidence").arg(item.get("confidence").and_then(|v| v.as_f64()).unwrap_or(0.5).to_string())
@@ -665,13 +665,13 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     // Build Opus prompt with reviewed price data (material + labor split)
     let price_data: String = reviewed_items.iter()
         .map(|item| format!(
-            "- {} [{}]: материал={} лв, труд={} лв, общо={}-{} лв/{} (source: {})",
+            "- {} [{}]: материал={} €, труд={} €, общо={}-{} €/{} (source: {})",
             item.get("description").unwrap_or(&String::new()),
             item.get("sek_group").unwrap_or(&String::new()),
-            item.get("material_price_lv").unwrap_or(&"0".to_string()),
-            item.get("labor_price_lv").unwrap_or(&"0".to_string()),
-            item.get("price_min_lv").unwrap_or(&"0".to_string()),
-            item.get("price_max_lv").unwrap_or(&"0".to_string()),
+            item.get("material_price_eur").unwrap_or(&"0".to_string()),
+            item.get("labor_price_eur").unwrap_or(&"0".to_string()),
+            item.get("price_min_eur").unwrap_or(&"0".to_string()),
+            item.get("price_max_eur").unwrap_or(&"0".to_string()),
             item.get("unit").unwrap_or(&"М2".to_string()),
             item.get("source_url").unwrap_or(&String::new()),
         ))
@@ -815,7 +815,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
              - 0.5: Assumed from building type with SOME indirect evidence\n\
              - 0.3: Assumed from building type with NO evidence in drawing\n\
              Items with confidence < 0.7 are 'suggestions' needing user approval.\n\n\
-             Output JSON matching: {{ \"kss_sections\": [...], \"total_items\": N, \"total_lv\": N, \"drawing_type\": \"...\", \"language_detected\": \"...\", \"warnings\": [...] }}"
+             Output JSON matching: {{ \"kss_sections\": [...], \"total_items\": N, \"total_eur\": N, \"drawing_type\": \"...\", \"language_detected\": \"...\", \"warnings\": [...] }}"
         );
 
         let progress = 40 + (struct_idx as i32 * 40 / n_structs.max(1) as i32);
@@ -828,12 +828,18 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         let mut covered_descriptions: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         if mode == "rag" || mode == "hybrid" {
-            rag_items = generate_rag_items_for_structure(&ctx.db, user_id, drawing_type)
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::warn!(%session_id, error = %e, "RAG search failed, falling back to AI");
-                    Vec::new()
-                });
+            rag_items = generate_rag_items_for_structure(
+                &ctx.db,
+                user_id,
+                drawing_type,
+                struct_idx,
+                n_structs,
+            )
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!(%session_id, error = %e, "RAG search failed, falling back to AI");
+                Vec::new()
+            });
             for it in &rag_items {
                 covered_descriptions.insert(canonical_desc_key(&it.description));
             }
@@ -851,8 +857,8 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
                 kss_sections: Vec::new(),
                 overhead: kcc_core::ai::AiKssOverhead::default(),
                 total_items: rag_items.len(),
-                construction_subtotal_lv: rag_items.iter().map(|i| i.total_price).sum(),
-                total_lv: rag_items.iter().map(|i| i.total_price).sum(),
+                construction_subtotal_eur: rag_items.iter().map(|i| i.total_price).sum(),
+                total_eur: rag_items.iter().map(|i| i.total_price).sum(),
                 drawing_type: drawing_type.as_str().to_string(),
                 language_detected: "bg".to_string(),
                 warnings: if rag_items.is_empty() {
@@ -872,7 +878,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         tracing::info!(
             %session_id, structure = %label, %mode,
             ai_items = ai_response.total_items,
-            total_lv = format!("{:.2}", ai_response.total_lv),
+            total_eur = format!("{:.2}", ai_response.total_eur),
             warnings = ai_response.warnings.len(),
             "KSS generation complete for structure",
         );
@@ -933,13 +939,13 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     // existing report-building / validation / persistence path keeps working.
     let aggregate_items: Vec<kcc_core::kss::types::KssLineItem> = all_tagged_items
         .iter().map(|(_, _, it)| it.clone()).collect();
-    let total_lv: f64 = aggregate_items.iter().map(|i| i.total_price).sum();
+    let total_eur: f64 = aggregate_items.iter().map(|i| i.total_price).sum();
     let ai_response = kcc_core::ai::AiKssResponse {
         kss_sections: Vec::new(), // not used downstream; we use ai_kss directly
         overhead: kcc_core::ai::AiKssOverhead::default(),
         total_items: aggregate_items.len(),
-        construction_subtotal_lv: total_lv,
-        total_lv,
+        construction_subtotal_eur: total_eur,
+        total_eur,
         drawing_type: detected_drawing_type,
         language_detected: detected_language,
         warnings: all_warnings.clone(),
@@ -949,7 +955,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
         %session_id,
         n_structures = n_structs,
         ai_items = ai_response.total_items,
-        total_lv = format!("{:.2}", ai_response.total_lv),
+        total_eur = format!("{:.2}", ai_response.total_eur),
         warnings = ai_response.warnings.len(),
         "All structures complete — aggregating",
     );
@@ -1007,10 +1013,10 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     sqlx::query(
         "INSERT INTO kss_reports
            (id, drawing_id, user_id, ai_enhanced, report_data,
-            subtotal_lv, vat_lv, total_with_vat_lv, item_count,
+            subtotal_eur, vat_eur, total_with_vat_eur, item_count,
             mode, status, validation_warnings, is_renovation,
-            smr_subtotal_lv, contingency_lv, delivery_storage_lv, profit_lv,
-            pre_vat_total_lv, final_total_lv, totals_formula_version)
+            smr_subtotal_eur, contingency_eur, delivery_storage_eur, profit_eur,
+            pre_vat_total_eur, final_total_eur, totals_formula_version)
          VALUES
            ($1, $2, $3, true, $4,
             $5, $6, $7, $8,
@@ -1115,7 +1121,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
             "generated_at": chrono::Utc::now().to_rfc3339(),
         });
         sqlx::query(
-            "INSERT INTO kss_line_items (report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_lv, total_lv, labor_price, material_price, mechanization_price, overhead_price, confidence, reasoning, provenance, obrazec_ref, is_renovation, ewc_waste_code, audit_trail, source_entity_id, source_layer, centroid_x, centroid_y, extraction_method, geometry_confidence, needs_review, structure_id, structure_label)
+            "INSERT INTO kss_line_items (report_id, section_number, section_title, item_no, sek_code, description, unit, quantity, unit_price_eur, total_eur, labor_price, material_price, mechanization_price, overhead_price, confidence, reasoning, provenance, obrazec_ref, is_renovation, ewc_waste_code, audit_trail, source_entity_id, source_layer, centroid_x, centroid_y, extraction_method, geometry_confidence, needs_review, structure_id, structure_label)
              VALUES ($1, '', '', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)"
         )
         .bind(report_id)
@@ -1252,7 +1258,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
                 "SELECT COUNT(*) FROM drawing_annotations WHERE drawing_id = $1 AND structure_id = $2"
             ).bind(drawing_id).bind(*sid).fetch_one(&ctx.db).await.unwrap_or(0);
             let subtotal: Option<f64> = sqlx::query_scalar(
-                "SELECT COALESCE(SUM(total_lv), 0) FROM kss_line_items
+                "SELECT COALESCE(SUM(total_eur), 0) FROM kss_line_items
                  WHERE report_id = $1 AND structure_id = $2",
             )
             .bind(report_id)
@@ -1276,7 +1282,7 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
                 dimension_count: dim_n as usize,
                 annotation_count: ann_n as usize,
                 line_item_count: line_n as usize,
-                subtotal_lv: subtotal.unwrap_or(0.0),
+                subtotal_eur: subtotal.unwrap_or(0.0),
             });
         }
     }
@@ -1380,9 +1386,9 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     let p6 = &mut audit.phase6_report;
     p6.total_items = ai_kss.items.len();
     p6.total_sections = sectioned.sections.len();
-    p6.subtotal_bgn = sectioned.cost_ladder.smr_subtotal;
-    p6.vat_bgn = sectioned.cost_ladder.vat;
-    p6.total_with_vat_bgn = sectioned.cost_ladder.final_total;
+    p6.subtotal_eur = sectioned.cost_ladder.smr_subtotal;
+    p6.vat_eur = sectioned.cost_ladder.vat;
+    p6.total_with_vat_eur = sectioned.cost_ladder.final_total;
     p6.reports_generated = vec!["postgres_kss_reports".into(), "postgres_kss_line_items".into()];
 
     // Phase 3: Quantity data — from reviewed items, capture what went in
@@ -1612,11 +1618,131 @@ fn canonical_desc_key(s: &str) -> String {
         .join(" ")
 }
 
-/// RAG retrieval per structure. For each canonical category, search the
-/// user's price corpus and emit a KssLineItem from the top match (when
-/// similarity ≥ 0.30). Quantity is taken from the corpus row as a starting
-/// point — the user reviews and adjusts in the KSS UI before signing.
+/// RAG retrieval per detected structure (module).
+///
+/// Strategy:
+///   * If the user's corpus has the SAME number of distinct source sheets
+///     as the drawing has detected modules, pair 1:1 by sorted size:
+///     largest sheet → largest module. Then emit ALL priced rows from the
+///     paired sheet as KSS line items — verbatim. The user already curated
+///     these line items in their offer; we don't need to re-select via
+///     trigram search. This produces module-accurate quantities (exactly
+///     matching what they shipped before).
+///   * Otherwise, fall back to canonical-category search (the legacy
+///     behaviour) — works when corpus has only 1 sheet (single offer for a
+///     single-module new drawing) or when sheet count doesn't match.
 async fn generate_rag_items_for_structure(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    drawing_type: kcc_core::drawing_type::DrawingType,
+    structure_index: usize,
+    structure_count: usize,
+) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
+    // Sheet inventory: name + total m² priced rows (a proxy for module size)
+    let sheets: Vec<(String, f64)> = sqlx::query_as(
+        "SELECT
+            COALESCE(source_sheet, '__null__') AS sheet,
+            COALESCE(SUM(quantity), 0.0)::float8 AS total_qty
+         FROM user_price_corpus
+         WHERE user_id = $1
+           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+         GROUP BY source_sheet
+         ORDER BY total_qty DESC, sheet ASC",
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await?;
+
+    if sheets.len() == structure_count && structure_count > 0 {
+        // Sheet pinning path. Modules sorted left-to-right (small index =
+        // small bbox in detector order). Sheets sorted by total qty desc.
+        // We pair by sorted_index so largest module gets largest sheet — a
+        // size-aligned 1:1 mapping that mirrors the user's offer.
+        // Index inversion: structure_index 0 is leftmost module (smallest by
+        // canonical sort? not necessarily). For now, pair by direct index
+        // order (leftmost → biggest sheet). The user can rename modules if
+        // the pairing is off.
+        let target_sheet = sheets
+            .get(structure_index)
+            .map(|(s, _)| s.clone())
+            .unwrap_or_default();
+        return rag_items_from_sheet(db, user_id, &target_sheet).await;
+    }
+
+    // Fallback: per-category top-1 search across the whole corpus.
+    rag_items_from_categories(db, user_id, drawing_type).await
+}
+
+/// Emit one KSS line item per priced row in the matched sheet. Quantities
+/// and prices come straight from the user's offer.
+async fn rag_items_from_sheet(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+    sheet: &str,
+) -> anyhow::Result<Vec<kcc_core::kss::types::KssLineItem>> {
+    let rows: Vec<(
+        Uuid,
+        Option<String>,
+        String,
+        String,
+        Option<f64>,
+        f64,
+        f64,
+        f64,
+    )> = sqlx::query_as(
+        "SELECT id, sek_code, description, unit, quantity,
+                COALESCE(material_price_eur, 0)::float8,
+                COALESCE(labor_price_eur, 0)::float8,
+                COALESCE(total_unit_price_eur, 0)::float8
+         FROM user_price_corpus
+         WHERE user_id = $1
+           AND COALESCE(source_sheet, '__null__') = $2
+           AND (COALESCE(material_price_eur, 0) + COALESCE(labor_price_eur, 0)) > 0
+         ORDER BY source_row ASC NULLS LAST, created_at ASC",
+    )
+    .bind(user_id)
+    .bind(sheet)
+    .fetch_all(db)
+    .await?;
+
+    let mut items = Vec::with_capacity(rows.len());
+    for (idx, (_id, sek_code, description, unit, quantity, mat, lab, total_unit)) in
+        rows.into_iter().enumerate()
+    {
+        let qty = quantity.filter(|q| *q > 0.0).unwrap_or(1.0);
+        let total = total_unit * qty;
+        let sek_code = sek_code
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| sek_code_for_query(&description).to_string());
+        items.push(kcc_core::kss::types::KssLineItem {
+            item_no: idx + 1,
+            sek_code,
+            description: description.clone(),
+            unit,
+            quantity: qty,
+            material_price: mat,
+            labor_price: lab,
+            mechanization_price: 0.0,
+            overhead_price: 0.0,
+            total_price: total,
+            confidence: 0.95,
+            reasoning: format!(
+                "From your offer sheet '{}' — verbatim. Adjust qty if the new module differs.",
+                sheet
+            ),
+            provenance: "rag".to_string(),
+            source_layer: None,
+            extraction_method: Some("user_corpus_sheet".to_string()),
+            geometry_confidence: 0.95,
+            needs_review: true,
+            ..Default::default()
+        });
+    }
+    Ok(items)
+}
+
+/// Legacy category-based search (kept for the sheet-mismatch fallback).
+async fn rag_items_from_categories(
     db: &sqlx::PgPool,
     user_id: Uuid,
     drawing_type: kcc_core::drawing_type::DrawingType,
@@ -1631,23 +1757,16 @@ async fn generate_rag_items_for_structure(
     let mut items: Vec<kcc_core::kss::types::KssLineItem> = Vec::new();
     let mut seen_corpus_ids: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
     let mut item_no = 0usize;
-    for (cat_idx, query) in rag_categories_for(drawing_type).iter().enumerate() {
+    for query in rag_categories_for(drawing_type) {
         let matches = search_corpus(db, user_id, query, opts).await?;
         let Some(top) = matches.into_iter().next() else {
             continue;
         };
-        // De-dup: a single corpus row could match two categories (e.g.
-        // "OSB 18" and "OSB"). Skip if we've already used it.
         if !seen_corpus_ids.insert(top.id) {
             continue;
         }
-        // Use the corpus row's quantity as the starting point. The user
-        // uploaded an offer they actually shipped to a similar module, so
-        // its quantity is far more useful than a zero. They can adjust in
-        // the KSS UI; needs_review stays true so the row is flagged.
-        // Fall back to 1.0 when the corpus carries no quantity.
         let qty = top.quantity.filter(|q| *q > 0.0).unwrap_or(1.0);
-        let total = top.total_unit_price_lv * qty;
+        let total = top.total_unit_price_eur * qty;
         let sek_code = top
             .sek_code
             .clone()
@@ -1659,8 +1778,8 @@ async fn generate_rag_items_for_structure(
             description: top.description.clone(),
             unit: top.unit.clone(),
             quantity: qty,
-            material_price: top.material_price_lv,
-            labor_price: top.labor_price_lv,
+            material_price: top.material_price_eur,
+            labor_price: top.labor_price_eur,
             mechanization_price: 0.0,
             overhead_price: 0.0,
             total_price: total,
@@ -1678,7 +1797,6 @@ async fn generate_rag_items_for_structure(
             needs_review: true,
             ..Default::default()
         });
-        let _ = cat_idx;
     }
     Ok(items)
 }

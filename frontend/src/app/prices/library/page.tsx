@@ -18,9 +18,9 @@ interface CorpusRow {
   description: string;
   unit: string;
   quantity: number | null;
-  material_price_lv: number | null;
-  labor_price_lv: number | null;
-  total_unit_price_lv: number | null;
+  material_price_eur: number | null;
+  labor_price_eur: number | null;
+  total_unit_price_eur: number | null;
   currency: string;
   source_sheet: string | null;
   source_row: number | null;
@@ -241,13 +241,13 @@ export default function PriceLibraryPage() {
                     </td>
                     <td className="px-2 py-1.5 text-xs">{r.unit}</td>
                     <td className="px-2 py-1.5 text-right font-mono text-xs">
-                      {r.material_price_lv?.toFixed(2) ?? '—'}
+                      {r.material_price_eur?.toFixed(2) ?? '—'}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-xs">
-                      {r.labor_price_lv?.toFixed(2) ?? '—'}
+                      {r.labor_price_eur?.toFixed(2) ?? '—'}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-xs font-medium">
-                      {r.total_unit_price_lv?.toFixed(2) ?? '—'}
+                      {r.total_unit_price_eur?.toFixed(2) ?? '—'}
                     </td>
                     <td className="px-2 py-1.5 text-[11px] text-content-tertiary truncate" title={r.source_sheet ?? ''}>
                       {r.source_sheet ?? '—'}

@@ -22,7 +22,7 @@ impl LaborBand {
 
 #[derive(Debug, Clone)]
 pub struct PricingDefaults {
-    pub currency: String, // "EUR" or "BGN"
+    pub currency: String, // "EUR" or "EUR"
     pub vat_rate_pct: f64,
 
     pub dr_labor_pct: f64,
@@ -131,7 +131,7 @@ impl PricingDefaults {
     }
 
     pub fn currency_symbol(&self) -> &'static str {
-        if self.currency == "EUR" { "€" } else { "лв" }
+        if self.currency == "EUR" { "€" } else { "€" }
     }
 
     /// Build the Bulgarian labor-rate anchor block for injection into the AI

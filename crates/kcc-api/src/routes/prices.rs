@@ -90,8 +90,6 @@ struct ScrapedPriceItem {
     sek_group: Option<String>,
     item_name: String,
     unit: Option<String>,
-    price_min_lv: Option<f64>,
-    price_max_lv: Option<f64>,
     price_min_eur: Option<f64>,
     price_max_eur: Option<f64>,
     currency: Option<String>,
@@ -119,7 +117,7 @@ async fn list_scraped_prices(
     let offset = q.offset.unwrap_or(0);
 
     let items: Vec<ScrapedPriceItem> = sqlx::query_as(
-        r#"SELECT id, site, sek_code, sek_group, item_name, unit, price_min_lv, price_max_lv, price_min_eur, price_max_eur, currency, mapping_confidence, extraction_confidence, extraction_strategy, is_manual, is_user_edited, notes, captured_at
+        r#"SELECT id, site, sek_code, sek_group, item_name, unit, price_min_eur, price_max_eur, price_min_eur, price_max_eur, currency, mapping_confidence, extraction_confidence, extraction_strategy, is_manual, is_user_edited, notes, captured_at
            FROM scraped_price_rows
            WHERE user_id = $1
              AND archived_at IS NULL
@@ -341,8 +339,6 @@ struct CreatePriceRequest {
     item_name: String,
     category: Option<String>,
     unit: Option<String>,
-    price_min_lv: Option<f64>,
-    price_max_lv: Option<f64>,
     price_min_eur: Option<f64>,
     price_max_eur: Option<f64>,
     notes: Option<String>,
@@ -358,15 +354,13 @@ async fn create_price_row(
         .and_then(|c| c.find('.').map(|i| c[..i].to_string()));
 
     sqlx::query(
-        "INSERT INTO scraped_price_rows (id, user_id, site, source_url, item_name, unit, price_min_lv, price_max_lv, price_min_eur, price_max_eur, price_min, price_max, currency, sek_code, sek_group, category_slug, notes, is_manual, mapping_confidence)
-         VALUES ($1, $2, 'manual', '', $3, $4, $5, $6, $7, $8, $5, $6, 'lv', $9, $10, $11, $12, true, 1.0)",
+        "INSERT INTO scraped_price_rows (id, user_id, site, source_url, item_name, unit, price_min_eur, price_max_eur, price_min, price_max, currency, sek_code, sek_group, category_slug, notes, is_manual, mapping_confidence)
+         VALUES ($1, $2, 'manual', '', $3, $4, $5, $6, $5, $6, 'EUR', $7, $8, $9, $10, true, 1.0)",
     )
     .bind(id)
     .bind(user_id)
     .bind(&body.item_name)
     .bind(&body.unit)
-    .bind(body.price_min_lv)
-    .bind(body.price_max_lv)
     .bind(body.price_min_eur)
     .bind(body.price_max_eur)
     .bind(&body.sek_code)
@@ -399,8 +393,6 @@ struct UpdatePriceRequest {
     sek_code: Option<String>,
     item_name: Option<String>,
     unit: Option<String>,
-    price_min_lv: Option<f64>,
-    price_max_lv: Option<f64>,
     price_min_eur: Option<f64>,
     price_max_eur: Option<f64>,
     notes: Option<String>,
@@ -430,19 +422,15 @@ async fn update_price_row(
             sek_code = COALESCE($1, sek_code),
             item_name = COALESCE($2, item_name),
             unit = COALESCE($3, unit),
-            price_min_lv = COALESCE($4, price_min_lv),
-            price_max_lv = COALESCE($5, price_max_lv),
-            price_min_eur = COALESCE($6, price_min_eur),
-            price_max_eur = COALESCE($7, price_max_eur),
-            notes = COALESCE($8, notes),
+            price_min_eur = COALESCE($4, price_min_eur),
+            price_max_eur = COALESCE($5, price_max_eur),
+            notes = COALESCE($6, notes),
             is_user_edited = true
-         WHERE id = $9 AND user_id = $10",
+         WHERE id = $7 AND user_id = $8",
     )
     .bind(&body.sek_code)
     .bind(&body.item_name)
     .bind(&body.unit)
-    .bind(body.price_min_lv)
-    .bind(body.price_max_lv)
     .bind(body.price_min_eur)
     .bind(body.price_max_eur)
     .bind(&body.notes)

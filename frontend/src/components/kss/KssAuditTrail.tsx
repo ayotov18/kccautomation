@@ -160,7 +160,7 @@ interface StructureAuditRow {
   dimension_count: number;
   annotation_count: number;
   line_item_count: number;
-  subtotal_lv: number;
+  subtotal_eur: number;
 }
 
 function DetectedStructuresPanel({
@@ -300,7 +300,7 @@ function DetectedStructuresPanel({
                   lines: <span className="text-blue-300">{s.line_item_count}</span>
                 </div>
                 <div className="text-right text-emerald-300 font-mono">
-                  {s.subtotal_lv.toFixed(0)}
+                  {s.subtotal_eur.toFixed(0)}
                 </div>
               </div>
               {id !== '' && (

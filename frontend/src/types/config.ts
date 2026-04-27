@@ -97,7 +97,7 @@ export const DEFAULT_ANALYSIS_CONFIG: AnalysisConfig = {
 // Values derived from BG industry research (СЕК, УСН, 2026 market).
 // Every number is user-configurable on /settings/pricing and persists per-user.
 
-export type PricingCurrency = 'EUR' | 'BGN';
+export type PricingCurrency = 'EUR' | 'EUR';
 
 export interface LaborRateBand {
   low: number; // EUR/hour

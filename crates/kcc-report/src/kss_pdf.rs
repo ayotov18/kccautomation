@@ -26,7 +26,7 @@ pub fn generate_kss_pdf(report: &KssReport) -> Result<Vec<u8>, KssPdfError> {
     lines.push(format!("(Total Items: {}) Tj", report.items.len()));
     lines.push("0 -14 Td".into());
     lines.push(format!(
-        "(Grand Total: {:.2} BGN) Tj",
+        "(Grand Total: {:.2} EUR) Tj",
         report.totals.grand_total
     ));
     lines.push("0 -14 Td".into());

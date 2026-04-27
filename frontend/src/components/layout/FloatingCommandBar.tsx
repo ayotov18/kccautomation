@@ -70,7 +70,7 @@ const ROUTES: Route[] = [
   { id: 'quantities', label: 'Quantity Norms', labelBg: 'Количества & Норми', path: '/data/quantities', group: 'Данни', icon: <Scale size={14} />, keywords: ['норми', 'разпределения', 'количества', 'usn', 'усн', 'атс', 'consumption', 'quantity', 'distributions'] },
   { id: 'cde', label: 'Documents (CDE)', labelBg: 'Документи', path: '/cde', group: 'Данни', icon: <FolderArchive size={14} />, keywords: ['documents', 'files'] },
   { id: 'drm', label: 'DRM Learning', labelBg: 'DRM статистика', path: '/drm-stats', group: 'Данни', icon: <BarChart3 size={14} />, keywords: ['drm', 'learning', 'ai'] },
-  { id: 'pricing', label: 'Pricing Defaults', labelBg: 'Ценови настройки', path: '/settings/pricing', group: 'Данни', icon: <Tag size={14} />, keywords: ['prices', 'ддс', 'vat', 'печалба', 'непредвидени', 'труд', 'ставки', 'eur', 'лв'] },
+  { id: 'pricing', label: 'Pricing Defaults', labelBg: 'Ценови настройки', path: '/settings/pricing', group: 'Данни', icon: <Tag size={14} />, keywords: ['prices', 'ддс', 'vat', 'печалба', 'непредвидени', 'труд', 'ставки', 'eur', '€'] },
   { id: 'settings', label: 'Settings', labelBg: 'Настройки', path: '/settings', group: 'Данни', icon: <Settings size={14} />, keywords: ['config', 'настройки'] },
 ];
 

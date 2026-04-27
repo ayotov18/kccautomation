@@ -17,9 +17,9 @@ Produce a complete Количествено-Стойностна Сметка fo
 
 FORMAT RULES:
 1. Each item must be "Доставка и монтаж [description]" format with SEPARATE material and labor prices
-2. material_price_lv = material/delivery cost per unit in лв
-3. labor_price_lv = labor/installation cost per unit in лв
-4. price_lv = material_price_lv + labor_price_lv (unit total)
+2. material_price_eur = material/delivery cost per unit in €
+3. labor_price_eur = labor/installation cost per unit in €
+4. price_eur = material_price_eur + labor_price_eur (unit total)
 5. Group into standard KSS sections I–XXIII
 6. Include TRANSPORT as an explicit line item
 7. Include firm OVERHEAD section (admin, contingency, delivery/storage, profit, ДДС)
@@ -35,7 +35,7 @@ QUANTITY ESTIMATION (CRITICAL):
 3. ROOM AREAS: From "Xm2" annotations directly. If none, estimate from dimensions.
 4. CEILING HEIGHT: Look for repeated dimension ~2.50-3.00m. Default 2.80m.
 5. WALL THICKNESS: Look for dimension 0.15-0.25m. Default 0.20m.
-6. TRANSPORT: Small (<100м2): 800 лв. Medium (100-200м2): 1500 лв. Large (>200м2): 2000 лв.
+6. TRANSPORT: Small (<100м2): 800 €. Medium (100-200м2): 1500 €. Large (>200м2): 2000 €.
 
 CONFIDENCE SCORING (CRITICAL — be honest, users WILL verify against the drawing):
 - 0.9: Quantity derived DIRECTLY from drawing geometry, dimensions, or block INSERT counts
@@ -67,9 +67,9 @@ OUTPUT JSON SCHEMA:
       "description": "Доставка и монтаж на тухлена зидария 29см",
       "unit": "М2",
       "quantity": 68.3,
-      "material_price_lv": 55.0,
-      "labor_price_lv": 70.0,
-      "price_lv": 125.0,
+      "material_price_eur": 55.0,
+      "labor_price_eur": 70.0,
+      "price_eur": 125.0,
       "confidence": 0.85,
       "reasoning": "Wall area from Vista layers ÷ 2 views = 68.3 М2"
     }]
@@ -82,8 +82,8 @@ OUTPUT JSON SCHEMA:
     "vat_rate_pct": 20.0
   },
   "total_items": 15,
-  "construction_subtotal_lv": 85000.0,
-  "total_lv": 165000.0,
+  "construction_subtotal_eur": 85000.0,
+  "total_eur": 165000.0,
   "drawing_type": "architectural_floor_plan",
   "language_detected": "bulgarian",
   "warnings": []
@@ -174,7 +174,7 @@ pub fn build_user_prompt(
             "sek_code": p.sek_code,
             "description": p.description,
             "unit": p.unit,
-            "price_avg_lv": p.total_unit_price(),
+            "price_avg_eur": p.total_unit_price(),
         }))
         .collect();
 

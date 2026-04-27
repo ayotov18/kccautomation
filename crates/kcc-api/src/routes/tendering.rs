@@ -179,7 +179,7 @@ async fn submit_bid(
     .await?
     .ok_or_else(|| ApiError::NotFound("Tender package not found".into()))?;
 
-    let currency = body.currency.unwrap_or_else(|| "BGN".to_string());
+    let currency = body.currency.unwrap_or_else(|| "EUR".to_string());
 
     let bid = sqlx::query_as::<_, TenderBid>(
         r#"INSERT INTO tender_bids

@@ -113,7 +113,7 @@ async fn import_corpus(
         let mut qb = sqlx::QueryBuilder::new(
             "INSERT INTO user_price_corpus
                 (user_id, import_id, sek_code, description, unit, quantity,
-                 material_price_lv, labor_price_lv, total_unit_price_lv,
+                 material_price_eur, labor_price_eur, total_unit_price_eur,
                  currency, source_sheet, source_row) ",
         );
         qb.push_values(chunk.iter(), |mut b, row| {
@@ -123,9 +123,9 @@ async fn import_corpus(
                 .push_bind(&row.description)
                 .push_bind(&row.unit)
                 .push_bind(row.quantity)
-                .push_bind(row.material_price_lv)
-                .push_bind(row.labor_price_lv)
-                .push_bind(row.total_unit_price_lv)
+                .push_bind(row.material_price_eur)
+                .push_bind(row.labor_price_eur)
+                .push_bind(row.total_unit_price_eur)
                 .push_bind("EUR")
                 .push_bind(&row.source_sheet)
                 .push_bind(row.source_row as i32);
@@ -161,9 +161,9 @@ struct CorpusRow {
     description: String,
     unit: String,
     quantity: Option<f64>,
-    material_price_lv: Option<f64>,
-    labor_price_lv: Option<f64>,
-    total_unit_price_lv: Option<f64>,
+    material_price_eur: Option<f64>,
+    labor_price_eur: Option<f64>,
+    total_unit_price_eur: Option<f64>,
     currency: String,
     source_sheet: Option<String>,
     source_row: Option<i32>,
@@ -196,7 +196,7 @@ async fn list_corpus(
         chrono::DateTime<chrono::Utc>,
     )>(
         "SELECT id, sek_code, description, unit, quantity,
-                material_price_lv, labor_price_lv, total_unit_price_lv,
+                material_price_eur, labor_price_eur, total_unit_price_eur,
                 currency, source_sheet, source_row, import_id, created_at
          FROM user_price_corpus
          WHERE user_id = $1
@@ -218,9 +218,9 @@ async fn list_corpus(
         description: r.2,
         unit: r.3,
         quantity: r.4,
-        material_price_lv: r.5,
-        labor_price_lv: r.6,
-        total_unit_price_lv: r.7,
+        material_price_eur: r.5,
+        labor_price_eur: r.6,
+        total_unit_price_eur: r.7,
         currency: r.8,
         source_sheet: r.9,
         source_row: r.10,

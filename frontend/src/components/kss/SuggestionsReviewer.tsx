@@ -211,7 +211,7 @@ export function SuggestionsReviewer({
                 <Metric label="Количество" value={`${formatNum(item.quantity)} ${item.unit}`} />
                 <Metric label="Материали" value={`${formatNum((item.material_price ?? 0) * item.quantity)} €`} />
                 <Metric label="Труд" value={`${formatNum((item.labor_price ?? 0) * item.quantity)} €`} />
-                <Metric label="Общо" value={`${formatNum(item.total_lv)} €`} emphasis />
+                <Metric label="Общо" value={`${formatNum(item.total_eur)} €`} emphasis />
               </div>
 
               {staged && (

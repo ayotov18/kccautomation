@@ -360,7 +360,7 @@ pub struct KssSection {
     pub title_bg: String,
     pub sek_group: String,
     pub items: Vec<KssLineItem>,
-    pub section_total_bgn: f64,
+    pub section_total_eur: f64,
 }
 
 /// Overhead / markup percentages that convert "СМР subtotal" into
@@ -409,10 +409,10 @@ pub struct SectionedKssReport {
     pub project_name: String,
     pub generated_at: String,
     pub sections: Vec<KssSection>,
-    pub subtotal_bgn: f64,
+    pub subtotal_eur: f64,
     pub vat_rate: f64,
-    pub vat_bgn: f64,
-    pub total_with_vat_bgn: f64,
+    pub vat_eur: f64,
+    pub total_with_vat_eur: f64,
     /// Full cost ladder: subtotal → markups → pre-VAT → VAT → final. Every UI
     /// screen and audit report renders from this struct so "ОБЩО ЗА ОБЕКТА"
     /// and "total (incl. VAT)" can never contradict each other again.
@@ -438,7 +438,7 @@ impl SectionedKssReport {
     }
 
     /// Build a sectioned report with the full cost ladder baked in.
-    /// Fills both the legacy `subtotal_bgn / vat_bgn / total_with_vat_bgn`
+    /// Fills both the legacy `subtotal_eur / vat_eur / total_with_vat_eur`
     /// fields AND the new `cost_ladder` so both old and new readers stay
     /// consistent.
     pub fn from_items_full(
@@ -472,7 +472,7 @@ impl SectionedKssReport {
                     title_bg: def.title_bg.to_string(),
                     sek_group: def.sek_group.to_string(),
                     items: group_items,
-                    section_total_bgn: section_total,
+                    section_total_eur: section_total,
                 });
             }
         }
@@ -488,14 +488,14 @@ impl SectionedKssReport {
                 title_bg: format!("ДРУГИ РАБОТИ ({})", group),
                 sek_group: group,
                 items,
-                section_total_bgn: section_total,
+                section_total_eur: section_total,
             });
         }
 
         // Sort sections by canonical order
         sections.sort_by_key(|s| section_index(&s.number));
 
-        let subtotal: f64 = sections.iter().map(|s| s.section_total_bgn).sum();
+        let subtotal: f64 = sections.iter().map(|s| s.section_total_eur).sum();
         let ladder = KssCostLadder::compute(subtotal, overheads, vat_rate);
 
         SectionedKssReport {
@@ -503,12 +503,12 @@ impl SectionedKssReport {
             generated_at: generated_at.to_string(),
             sections,
             // Legacy fields point at the ladder so any consumer still reading
-            // the old names (`total_with_vat_bgn`) gets the *same* number the
+            // the old names (`total_with_vat_eur`) gets the *same* number the
             // new consumers see via `cost_ladder.final_total`.
-            subtotal_bgn: ladder.smr_subtotal,
+            subtotal_eur: ladder.smr_subtotal,
             vat_rate,
-            vat_bgn: ladder.vat,
-            total_with_vat_bgn: ladder.final_total,
+            vat_eur: ladder.vat,
+            total_with_vat_eur: ladder.final_total,
             cost_ladder: ladder,
             overheads,
         }
@@ -566,10 +566,10 @@ mod tests {
         ];
         let oh = KssOverheads { contingency_pct: 10.0, delivery_storage_pct: 12.0, profit_pct: 10.0 };
         let r = SectionedKssReport::from_items_full("test", "now", items, 0.20, oh);
-        // Legacy subtotal_bgn aligns with the new ladder.
-        assert!((r.subtotal_bgn - r.cost_ladder.smr_subtotal).abs() < 0.001);
-        // Legacy total_with_vat_bgn also matches the new ladder's final.
-        assert!((r.total_with_vat_bgn - r.cost_ladder.final_total).abs() < 0.001);
+        // Legacy subtotal_eur aligns with the new ladder.
+        assert!((r.subtotal_eur - r.cost_ladder.smr_subtotal).abs() < 0.001);
+        // Legacy total_with_vat_eur also matches the new ladder's final.
+        assert!((r.total_with_vat_eur - r.cost_ladder.final_total).abs() < 0.001);
         // VAT is computed on the pre-VAT amount (incl. markups), not the raw SMR.
         assert!(r.cost_ladder.pre_vat_total > r.cost_ladder.smr_subtotal);
     }
