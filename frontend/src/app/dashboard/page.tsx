@@ -46,8 +46,11 @@ export default function DashboardPage() {
             <Link href="/projects" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition">
               <LayoutDashboard className="w-4 h-4 text-emerald-400" /> <span className="text-sm">New Project</span>
             </Link>
-            <Link href="/costs" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition">
-              <Layers className="w-4 h-4 text-sky-300" /> <span className="text-sm">Browse Cost Database</span>
+            <Link href="/prices" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition">
+              <Layers className="w-4 h-4 text-sky-300" /> <span className="text-sm">Prices &amp; Sources</span>
+            </Link>
+            <Link href="/files" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition">
+              <Layers className="w-4 h-4 text-emerald-300" /> <span className="text-sm">All files</span>
             </Link>
           </div>
         </div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
-import type { ScrapedPriceItem, ScrapeSource } from '@/types';
+import type { ScrapedPriceItem, ScrapeSource, Drawing } from '@/types';
+import { PriceLibrarySection } from '@/components/prices/PriceLibrarySection';
 
 interface PriceListInfo {
   id: string;
@@ -190,8 +191,21 @@ export default function PricesPage() {
 
   return (
     <div className="oe-fade-in">
-<div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <h1 className="text-2xl font-bold">Prices & Sources</h1>
+<div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        <div>
+          <h1 className="text-[26px] font-semibold tracking-tight text-content-primary">
+            Prices &amp; Sources
+          </h1>
+          <p className="mt-1 text-[12.5px] text-content-tertiary">
+            Everything price-related in one place — your XLSX offer library, CSV
+            price lists, scrape sources, and the searchable browser. Link an
+            offer to a drawing for 1:1 RAG generation.
+          </p>
+        </div>
+
+        {/* My Price Library — XLSX offers, drawing-linked. The RAG source
+            of truth. Lives here so users don't have to bounce between pages. */}
+        <PriceLibrarySection />
 
         {/* My Price Lists */}
         <section className="oe-card p-6">

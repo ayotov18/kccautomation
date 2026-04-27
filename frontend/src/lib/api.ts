@@ -660,83 +660,6 @@ class ApiClient {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ERP: BOQ
-  // ═══════════════════════════════════════════════════════════
-
-  async listBoqs(projectId: string): Promise<Array<{ id: string; name: string; status: string }>> {
-    return this.request(`/boq?project_id=${projectId}`);
-  }
-
-  async createBoq(data: { project_id: string; name: string; description?: string }): Promise<{ id: string }> {
-    return this.request('/boq', { method: 'POST', body: JSON.stringify(data) });
-  }
-
-  async getBoq(boqId: string): Promise<Record<string, unknown>> {
-    return this.request(`/boq/${boqId}`);
-  }
-
-  async createPosition(boqId: string, data: { ordinal: string; description: string; unit?: string; quantity?: string; unit_rate?: string }): Promise<{ id: string }> {
-    return this.request(`/boq/${boqId}/positions`, { method: 'POST', body: JSON.stringify(data) });
-  }
-
-  async updatePosition(positionId: string, data: Record<string, unknown>): Promise<void> {
-    return this.request(`/boq/positions/${positionId}`, { method: 'PUT', body: JSON.stringify(data) });
-  }
-
-  async deletePosition(positionId: string): Promise<void> {
-    return this.request(`/boq/positions/${positionId}`, { method: 'DELETE' });
-  }
-
-  async getMarkups(boqId: string): Promise<Array<Record<string, unknown>>> {
-    return this.request(`/boq/${boqId}/markups`);
-  }
-
-  async createMarkup(boqId: string, data: Record<string, unknown>): Promise<{ id: string }> {
-    return this.request(`/boq/${boqId}/markups`, { method: 'POST', body: JSON.stringify(data) });
-  }
-
-  async applyDefaultMarkups(boqId: string, region: string): Promise<void> {
-    return this.request(`/boq/${boqId}/markups/apply-defaults`, { method: 'POST', body: JSON.stringify({ region }) });
-  }
-
-  async computeGrandTotal(boqId: string): Promise<{ direct_cost: number; markups: Array<Record<string, unknown>>; grand_total: number }> {
-    return this.request(`/boq/${boqId}/grand-total`);
-  }
-
-  async listSnapshots(boqId: string): Promise<Array<{ id: string; name: string; created_at: string }>> {
-    return this.request(`/boq/${boqId}/snapshots`);
-  }
-
-  async createSnapshot(boqId: string, name: string): Promise<{ id: string }> {
-    return this.request(`/boq/${boqId}/snapshots`, { method: 'POST', body: JSON.stringify({ name }) });
-  }
-
-  async restoreSnapshot(boqId: string, snapshotId: string): Promise<void> {
-    return this.request(`/boq/${boqId}/snapshots/${snapshotId}/restore`, { method: 'POST' });
-  }
-
-  async validateBoq(boqId: string): Promise<Record<string, unknown>> {
-    return this.request(`/boq/${boqId}/validate`, { method: 'POST' });
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // ERP: Cost Database
-  // ═══════════════════════════════════════════════════════════
-
-  async searchCosts(query: string, region?: string, limit?: number): Promise<Array<{ id: string; code: string; description: string; unit: string; rate: string; region: string }>> {
-    const params = new URLSearchParams({ q: query });
-    if (region) params.set('region', region);
-    if (limit) params.set('limit', String(limit));
-    return this.request(`/costs/search?${params}`);
-  }
-
-  async importCosts(file: File): Promise<{ imported: number }> {
-    const form = new FormData();
-    form.append('file', file);
-    return this.request('/costs/import', { method: 'POST', body: form });
-  }
-
-  // ═══════════════════════════════════════════════════════════
   // ERP: Assemblies
   // ═══════════════════════════════════════════════════════════
 
@@ -751,18 +674,6 @@ class ApiClient {
 
   async getAssembly(id: string): Promise<Record<string, unknown>> {
     return this.request(`/assemblies/${id}`);
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // ERP: Schedule
-  // ═══════════════════════════════════════════════════════════
-
-  async getSchedule(id: string): Promise<Record<string, unknown>> {
-    return this.request(`/schedule/${id}`);
-  }
-
-  async calculateCpm(scheduleId: string): Promise<Record<string, unknown>> {
-    return this.request(`/schedule/${scheduleId}/cpm`, { method: 'POST' });
   }
 
   // ═══════════════════════════════════════════════════════════

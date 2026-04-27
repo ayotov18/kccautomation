@@ -29,8 +29,40 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: 'KCC Automation',
-  description: 'Construction ERP — KCC report generation from engineering drawings',
+  title: {
+    default: 'KCC Automation — AI-driven KSS reports from DWG',
+    template: '%s · KCC Automation',
+  },
+  description:
+    'Generate Bulgarian Количествено-Стойностна Сметка reports automatically from DWG/DXF drawings. Multi-module detection, RAG against your historical offers, full audit trail.',
+  applicationName: 'KCC Automation',
+  keywords: [
+    'KSS',
+    'КСС',
+    'количествено-стойностна сметка',
+    'Bulgarian construction estimating',
+    'DWG to KSS',
+    'DXF analysis',
+    'BoQ',
+    'bills of quantities',
+    'construction RAG',
+    'AI KCC',
+  ],
+  authors: [{ name: 'KCC Automation' }],
+  formatDetection: { telephone: false, address: false, email: false },
+  robots: {
+    index: false, // internal product UI; auth-gated; no public indexing
+    follow: false,
+    nocache: true,
+  },
+  openGraph: {
+    title: 'KCC Automation',
+    description: 'AI-driven Bulgarian KSS reports from DWG drawings.',
+    type: 'website',
+    locale: 'en_GB',
+    alternateLocale: ['bg_BG'],
+  },
+  twitter: { card: 'summary' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
