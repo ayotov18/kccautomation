@@ -1,36 +1,38 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════
-   KCC Automation — OERP-Inspired Design System (Tailwind v4)
-   Apple aesthetic: clean, spacious, precise. No harsh edges.
+   KCC Automation — Dashboard style guide
+   Anchored on the marketing landing palette: dark-first OKLCH, amber brand,
+   Geist + Instrument Serif. Linear/Stripe density, Cron 3-pane layouts.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Tailwind v4 Theme Registration ─────────────────────────────────── */
-/* This creates utility classes like bg-surface-primary, text-content-secondary */
 
 @theme {
-  /* Surfaces → bg-surface-* */
   --color-surface-primary: var(--oe-bg);
   --color-surface-secondary: var(--oe-bg-secondary);
   --color-surface-tertiary: var(--oe-bg-tertiary);
   --color-surface-elevated: var(--oe-bg-elevated);
 
-  /* Content → text-content-* */
   --color-content-primary: var(--oe-text-primary);
   --color-content-secondary: var(--oe-text-secondary);
   --color-content-tertiary: var(--oe-text-tertiary);
-  --color-content-inverse: #ffffff;
+  --color-content-quaternary: var(--oe-text-quaternary);
+  --color-content-inverse: var(--oe-bg);
 
-  /* Brand → bg-oe-blue, text-oe-blue, etc. */
-  --color-oe-blue: var(--oe-blue);
-  --color-oe-blue-hover: var(--oe-blue-hover);
-  --color-oe-blue-subtle: var(--oe-blue-subtle);
+  /* Brand tokens. `oe-blue` is kept as an alias for backward compat with
+     existing components — it now points to the amber accent. New code
+     should use `--oe-accent` directly. */
+  --color-oe-blue: var(--oe-accent);
+  --color-oe-blue-hover: var(--oe-accent-hot);
+  --color-oe-blue-subtle: var(--oe-accent-soft-bg);
+  --color-oe-accent: var(--oe-accent);
+  --color-oe-accent-hot: var(--oe-accent-hot);
+  --color-oe-accent-soft: var(--oe-accent-soft);
 
-  /* Borders → border-border, border-border-light */
   --color-border: var(--oe-border);
   --color-border-light: var(--oe-border-light);
 
-  /* Semantic → bg-semantic-success, text-semantic-error, etc. */
   --color-semantic-success: var(--oe-success);
   --color-semantic-warning: var(--oe-warning);
   --color-semantic-error: var(--oe-error);
@@ -40,64 +42,78 @@
   --color-semantic-error-bg: var(--oe-error-bg);
   --color-semantic-info-bg: var(--oe-info-bg);
 
-  /* Shadows → shadow-xs, shadow-sm, shadow-md, shadow-lg */
   --shadow-xs: var(--oe-shadow-xs);
   --shadow-sm: var(--oe-shadow-sm);
   --shadow-md: var(--oe-shadow-md);
   --shadow-lg: var(--oe-shadow-lg);
+  --shadow-amber: var(--oe-shadow-amber);
 
-  /* Spacing → w-sidebar, h-header */
   --spacing-sidebar: var(--oe-sidebar-width);
   --spacing-header: var(--oe-header-height);
 
-  /* Easing → ease-oe, duration-fast, duration-normal */
   --ease-oe: cubic-bezier(0.25, 0.1, 0.25, 1);
   --animate-fade-in: oeFadeIn 0.2s ease-out;
   --animate-slide-in: oeSlideIn 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
 
-  /* Font tokens — wired from next/font in app/layout.tsx
-     font-sans → Inter Variable    (UI chrome)
-     font-mono → JetBrains Mono    (entity counts, prices, tabular data)
-     font-display → Lora            (AI-generated long-form prose only) */
-  --font-family-sans: var(--font-sans), 'Inter Variable', ui-sans-serif, system-ui;
-  --font-family-mono: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
-  --font-family-display: var(--font-display), 'Lora', Georgia, serif;
+  /* next/font wires these in app/layout.tsx — Geist Sans, Geist Mono, and
+     Instrument Serif italic for display accents. */
+  --font-family-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-family-display: var(--font-display), ui-serif, Georgia, serif;
 }
 
-/* ── CSS Custom Properties (Light Mode) ─────────────────────────────── */
+/* ── Tokens ─────────────────────────────────────────────────────────── */
 
 :root {
-  /* Baby-blue brand palette */
-  --oe-blue: #89cff0;
-  --oe-blue-hover: #7dc6ed;
-  --oe-blue-active: #6fbbe6;
-  --oe-blue-subtle: #eaf6fc;
+  /* Dark-first. Light mode is intentionally absent — the product is dark.
+     The `.dark` class on <html> is kept so any existing `.dark`-scoped
+     selectors continue to match. */
 
-  --oe-bg: #ffffff;
-  --oe-bg-secondary: #f5f5f7;
-  --oe-bg-tertiary: #fbfbfd;
-  --oe-bg-elevated: #ffffff;
+  --oe-bg: oklch(0.14 0.012 260);
+  --oe-bg-secondary: oklch(0.17 0.012 260);
+  --oe-bg-tertiary: oklch(0.20 0.012 260);
+  --oe-bg-elevated: oklch(0.235 0.014 260);
 
-  --oe-border: #d2d2d7;
-  --oe-border-light: #e8e8ed;
+  --oe-border: oklch(0.32 0.014 260);
+  --oe-border-light: oklch(0.27 0.014 260);
 
-  --oe-text-primary: #1d1d1f;
-  --oe-text-secondary: #6e6e73;
-  --oe-text-tertiary: #86868b;
+  --oe-text-primary: oklch(0.95 0.005 260);
+  --oe-text-secondary: oklch(0.78 0.008 260);
+  --oe-text-tertiary: oklch(0.58 0.010 260);
+  --oe-text-quaternary: oklch(0.40 0.010 260);
 
-  --oe-success: #34c759;
-  --oe-success-bg: #ecfdf3;
-  --oe-warning: #ff9f0a;
-  --oe-warning-bg: #fff8ec;
-  --oe-error: #ff3b30;
-  --oe-error-bg: #fef2f2;
-  --oe-info: #5ac8fa;
-  --oe-info-bg: #eff9fe;
+  /* Amber brand from the landing nav/CTA pair. */
+  --oe-accent: oklch(0.72 0.16 55);
+  --oe-accent-hot: oklch(0.82 0.19 62);
+  --oe-accent-soft: oklch(0.78 0.14 60);
+  --oe-accent-soft-bg: oklch(0.72 0.16 55 / 0.12);
+  --oe-accent-ring: oklch(0.72 0.16 55 / 0.35);
 
-  --oe-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --oe-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --oe-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --oe-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+  /* Steel = info / secondary chips. Never used for primary CTAs. */
+  --oe-info: oklch(0.56 0.04 240);
+  --oe-info-bg: oklch(0.56 0.04 240 / 0.12);
+
+  --oe-success: oklch(0.74 0.14 150);
+  --oe-success-bg: oklch(0.74 0.14 150 / 0.12);
+  --oe-warning: oklch(0.78 0.14 70);
+  --oe-warning-bg: oklch(0.78 0.14 70 / 0.12);
+  --oe-error: oklch(0.62 0.20 25);
+  --oe-error-bg: oklch(0.62 0.20 25 / 0.12);
+
+  /* Backward-compat aliases so existing `bg-oe-blue-*` utilities resolve
+     without a sweeping rename across components. */
+  --oe-blue: var(--oe-accent);
+  --oe-blue-hover: var(--oe-accent-hot);
+  --oe-blue-active: var(--oe-accent-hot);
+  --oe-blue-subtle: var(--oe-accent-soft-bg);
+
+  --oe-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.35);
+  --oe-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
+  --oe-shadow-md: 0 8px 24px -6px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+  --oe-shadow-lg: 0 20px 50px -10px rgb(0 0 0 / 0.55), 0 4px 12px rgb(0 0 0 / 0.3);
+  --oe-shadow-amber:
+    0 0 0 1px oklch(0.72 0.16 55 / 0.2),
+    0 8px 36px -12px oklch(0.72 0.16 55 / 0.35);
 
   --oe-radius-sm: 8px;
   --oe-radius-md: 12px;
@@ -107,54 +123,15 @@
   --oe-sidebar-width: 232px;
   --oe-header-height: 52px;
 
-  --oe-sidebar-bg: #f5f5f7;
-  --oe-sidebar-hover: #e8e8ed;
+  --oe-sidebar-bg: oklch(0.13 0.012 260);
+  --oe-sidebar-hover: oklch(0.20 0.012 260);
 
-  --oe-header-bg: rgba(255, 255, 255, 0.8);
-}
-
-/* ── Dark Mode ──────────────────────────────────────────────────────── */
-
-.dark {
-  /* Baby-blue brand palette (dark mode — lighter cyan-blue for contrast) */
-  --oe-blue: #7dd3fc;
-  --oe-blue-hover: #93d8f7;
-  --oe-blue-active: #38bdf8;
-  --oe-blue-subtle: rgba(125, 211, 252, 0.15);
-
-  --oe-bg: #0f1117;
-  --oe-bg-secondary: #161822;
-  --oe-bg-tertiary: #1a1d2b;
-  --oe-bg-elevated: #1e2130;
-
-  --oe-border: #2a2d3e;
-  --oe-border-light: #232638;
-
-  --oe-text-primary: #f0f0f5;
-  --oe-text-secondary: #a0a3b5;
-  --oe-text-tertiary: #6b6e80;
-
-  --oe-success: #22c55e;
-  --oe-success-bg: rgba(34, 197, 94, 0.12);
-  --oe-warning: #f59e0b;
-  --oe-warning-bg: rgba(245, 158, 11, 0.12);
-  --oe-error: #ef4444;
-  --oe-error-bg: rgba(239, 68, 68, 0.12);
-  --oe-info: #38bdf8;
-  --oe-info-bg: rgba(56, 189, 248, 0.12);
-
-  --oe-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --oe-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-  --oe-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
-  --oe-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
-
-  --oe-sidebar-bg: #131520;
-  --oe-sidebar-hover: #1a1d2b;
-
-  --oe-header-bg: rgba(15, 17, 23, 0.8);
+  --oe-header-bg: color-mix(in oklch, var(--oe-bg) 82%, transparent);
 
   color-scheme: dark;
 }
+
+.dark { color-scheme: dark; }
 
 /* ── Base Styles ────────────────────────────────────────────────────── */
 
@@ -169,52 +146,55 @@
 
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 15px;
-    line-height: 1.47;
-    letter-spacing: -0.022em;
+    font-family: var(--font-family-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
     color: var(--oe-text-primary);
     background: var(--oe-bg);
   }
 
-  ::selection { background: var(--oe-blue); color: #fff; }
+  ::selection {
+    background: var(--oe-accent-soft-bg);
+    color: var(--oe-text-primary);
+  }
 
   :focus-visible {
-    outline: 3px solid var(--oe-blue);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: none;
+    box-shadow: 0 0 0 3px var(--oe-accent-ring);
+    border-radius: 6px;
   }
 
   input, textarea, select, button { font-family: inherit; font-size: inherit; }
-  a { color: var(--oe-blue); text-decoration: none; }
+  a { color: var(--oe-accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  /* Thin scrollbars */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 999px; border: 1px solid transparent; background-clip: padding-box; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); background-clip: padding-box; }
-  .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); background-clip: padding-box; }
-  .dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); background-clip: padding-box; }
-  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.06);
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.16); background-clip: padding-box; }
+  * { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.08) transparent; }
 
-  /* Native select — match dark theme */
-  .dark select {
+  select {
     background-color: var(--oe-bg-elevated);
     color: var(--oe-text-primary);
     border-color: var(--oe-border);
     border-radius: var(--oe-radius-sm);
   }
-  .dark select:focus {
+  select:focus {
     outline: none;
-    border-color: var(--oe-blue);
-    box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.25);
+    border-color: var(--oe-accent);
+    box-shadow: 0 0 0 3px var(--oe-accent-ring);
   }
 
-  /* Typography scale */
-  h1 { font-size: 30px; font-weight: 700; line-height: 1.13; letter-spacing: -0.04em; }
-  h2 { font-size: 22px; font-weight: 700; line-height: 1.18; letter-spacing: -0.03em; }
-  h3 { font-size: 19px; font-weight: 600; line-height: 1.21; letter-spacing: -0.02em; }
+  /* Type scale — Linear-style: tight, designed, no caps lock. */
+  h1 { font-size: 26px; font-weight: 600; line-height: 1.13; letter-spacing: -0.025em; text-wrap: balance; }
+  h2 { font-size: 18px; font-weight: 600; line-height: 1.22; letter-spacing: -0.02em; text-wrap: balance; }
+  h3 { font-size: 15px; font-weight: 600; line-height: 1.3; letter-spacing: -0.015em; }
 }
 
 /* ── AG Grid Theme ──────────────────────────────────────────────────── */
@@ -224,64 +204,129 @@
     --ag-background-color: var(--oe-bg);
     --ag-foreground-color: var(--oe-text-primary);
     --ag-header-background-color: var(--oe-bg-secondary);
-    --ag-border-color: var(--oe-border);
+    --ag-border-color: var(--oe-border-light);
     --ag-row-hover-color: var(--oe-bg-secondary);
     --ag-row-border-color: var(--oe-border-light);
     --ag-font-family: inherit;
     --ag-font-size: 13px;
-    --ag-row-height: 38px;
-    --ag-header-height: 40px;
+    --ag-row-height: 36px;
+    --ag-header-height: 36px;
   }
 }
 
 /* ── Utility Classes ────────────────────────────────────────────────── */
 
 @layer utilities {
+  /* Page geometry */
   .oe-page-padding { padding: 24px 32px; }
 
+  /* Eyebrow — 11px mono uppercase, used above headings and on KPI cards. */
+  .oe-eyebrow {
+    font-family: var(--font-family-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--oe-text-quaternary);
+  }
+
+  /* Display serif (Instrument Serif italic). One per page max. */
+  .oe-display {
+    font-family: var(--font-family-display);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
   .oe-section-title {
-    font-size: 22px; font-weight: 600;
+    font-size: 18px;
+    font-weight: 600;
     color: var(--oe-text-primary);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
   .oe-section-subtitle {
-    font-size: 14px; margin-top: 2px;
+    font-size: 13px;
+    margin-top: 2px;
     color: var(--oe-text-secondary);
   }
 
-  /* Cards */
+  /* Hairline divider with faded ends (mirrors landing's section dividers). */
+  .oe-hairline {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--oe-border) 12%,
+      var(--oe-border) 88%,
+      transparent
+    );
+    border: 0;
+  }
+
+  /* ── Cards ──────────────────────────────────────────────────────────
+     Cards use border + bg shift, not shadow, for elevation. The interactive
+     variant lifts border darkness on hover; no transform. */
   .oe-card {
     background: var(--oe-bg-elevated);
     border: 1px solid var(--oe-border-light);
-    border-radius: var(--oe-radius-xl);
-    box-shadow: var(--oe-shadow-xs);
-    transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    border-radius: var(--oe-radius-lg);
+    transition: background-color 200ms var(--ease-oe), border-color 200ms var(--ease-oe);
   }
   .oe-card-interactive {
     background: var(--oe-bg-elevated);
     border: 1px solid var(--oe-border-light);
-    border-radius: var(--oe-radius-xl);
-    box-shadow: var(--oe-shadow-xs);
+    border-radius: var(--oe-radius-lg);
     cursor: pointer;
-    transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    transition: background-color 200ms var(--ease-oe), border-color 200ms var(--ease-oe), box-shadow 200ms var(--ease-oe);
   }
   .oe-card-interactive:hover {
-    box-shadow: var(--oe-shadow-md);
     border-color: var(--oe-border);
-    transform: translateY(-2px);
+    background: color-mix(in oklch, var(--oe-bg-elevated) 88%, var(--oe-bg-tertiary));
   }
-  .oe-card-interactive:active {
-    transform: translateY(0);
-    box-shadow: var(--oe-shadow-xs);
+  .oe-card-interactive:active { background: var(--oe-bg-tertiary); }
+
+  /* Glass card — opt-in liquid-glass treatment from landing. Use at most
+     one per page (hero KPI strip or drawing-detail inspector). */
+  .oe-card-glass {
+    background: color-mix(in oklch, var(--oe-bg-elevated) 70%, transparent);
+    border: 1px solid color-mix(in oklch, white 6%, var(--oe-border-light));
+    border-radius: var(--oe-radius-lg);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.04),
+      0 8px 24px -8px rgb(0 0 0 / 0.5);
   }
 
-  /* ── Button system ─────────────────────────────────────────────────
-     Single primary color across the entire product (Linear / Vercel /
-     Granola convention): a near-white fill on dark mode reads as
-     "designed" and eliminates the sky-vs-gray inconsistency.
-     All variants pill-shaped (rounded-full). Sizes: default 32px,
-     `.oe-btn-sm` 26px, `.oe-btn-lg` 40px. No lift transform (looks AI-y).
-  */
+  /* ── KPI strip (Stripe-style) ──────────────────────────────────────── */
+  .oe-kpi {
+    background: var(--oe-bg-elevated);
+    border: 1px solid var(--oe-border-light);
+    border-radius: var(--oe-radius-lg);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 200ms var(--ease-oe);
+  }
+  .oe-kpi:hover { border-color: var(--oe-border); }
+  .oe-kpi-value {
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--oe-text-primary);
+    line-height: 1.05;
+  }
+  .oe-kpi-label {
+    font-size: 12.5px;
+    color: var(--oe-text-tertiary);
+  }
+
+  /* ── Buttons ────────────────────────────────────────────────────────
+     Pill geometry. Primary uses amber accent (the only place where amber
+     fills a surface). Secondary/ghost stay neutral. */
   .oe-btn-primary,
   .oe-btn-secondary,
   .oe-btn-ghost,
@@ -295,40 +340,41 @@
     cursor: pointer;
     user-select: none;
     transition:
-      background-color 140ms cubic-bezier(0.25, 0.1, 0.25, 1),
-      color 140ms cubic-bezier(0.25, 0.1, 0.25, 1),
-      border-color 140ms cubic-bezier(0.25, 0.1, 0.25, 1),
-      box-shadow 140ms cubic-bezier(0.25, 0.1, 0.25, 1);
+      background-color 140ms var(--ease-oe),
+      color 140ms var(--ease-oe),
+      border-color 140ms var(--ease-oe),
+      box-shadow 140ms var(--ease-oe);
   }
   .oe-btn-primary:focus-visible,
   .oe-btn-secondary:focus-visible,
   .oe-btn-ghost:focus-visible,
   .oe-btn-danger:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 0 3px var(--oe-accent-ring);
   }
   .oe-btn-primary:disabled,
   .oe-btn-secondary:disabled,
   .oe-btn-ghost:disabled,
-  .oe-btn-danger:disabled { opacity: 0.35; pointer-events: none; }
+  .oe-btn-danger:disabled { opacity: 0.4; pointer-events: none; }
   .oe-btn-sm { height: 26px; padding: 0 12px; font-size: 12px; }
-  .oe-btn-lg { height: 40px; padding: 0 20px; font-size: 14px; }
+  .oe-btn-lg { height: 40px; padding: 0 22px; font-size: 14px; }
 
-  /* Primary — near-white fill on dark, near-black text. The single
-     CTA color across the entire product. */
+  /* Primary — amber fill, near-black text. Only place with amber surface. */
   .oe-btn-primary {
-    background: #f5f5f5;
-    color: #0a0a0f;
+    background: var(--oe-accent);
+    color: oklch(0.14 0.012 260);
     border: 1px solid transparent;
+    box-shadow: var(--oe-shadow-amber);
   }
   .oe-btn-primary:hover:not(:disabled) {
-    background: #ffffff;
+    background: var(--oe-accent-hot);
   }
   .oe-btn-primary:active:not(:disabled) {
-    background: #e8e8e8;
+    background: var(--oe-accent);
+    box-shadow: 0 0 0 1px oklch(0.72 0.16 55 / 0.3);
   }
 
-  /* Secondary — transparent + hairline ring */
+  /* Secondary — transparent + hairline */
   .oe-btn-secondary {
     background: transparent;
     color: var(--oe-text-primary);
@@ -336,11 +382,11 @@
   }
   .oe-btn-secondary:hover:not(:disabled) {
     background: var(--oe-bg-secondary);
-    border-color: var(--oe-border);
+    border-color: color-mix(in oklch, var(--oe-border) 70%, var(--oe-text-tertiary));
   }
   .oe-btn-secondary:active:not(:disabled) { background: var(--oe-bg-tertiary); }
 
-  /* Ghost — tertiary, no chrome until hover */
+  /* Ghost — bare until hover */
   .oe-btn-ghost {
     background: transparent;
     color: var(--oe-text-secondary);
@@ -351,69 +397,128 @@
     color: var(--oe-text-primary);
   }
 
-  /* Danger — destructive actions only */
+  /* Danger — destructive only */
   .oe-btn-danger {
     background: transparent;
     color: var(--oe-error);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid color-mix(in oklch, var(--oe-error) 30%, transparent);
   }
   .oe-btn-danger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.5);
+    background: var(--oe-error-bg);
+    border-color: color-mix(in oklch, var(--oe-error) 50%, transparent);
   }
-  .oe-btn-danger:focus-visible { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3); }
+  .oe-btn-danger:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--oe-error) 30%, transparent);
+  }
 
-  /* Numeric data — apply to any element rendering counts, prices, dims. */
+  .oe-btn-icon { padding: 0; width: 32px; }
+  .oe-btn-icon.oe-btn-sm { width: 26px; }
+  .oe-btn-icon.oe-btn-lg { width: 40px; }
+
+  /* Numeric data — applied wherever digits are rendered */
   .font-numeric {
     font-family: var(--font-family-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
   }
-  /* Long-form AI-generated prose */
+  /* Display serif accent (italic Instrument Serif) */
   .font-display {
     font-family: var(--font-family-display);
-    letter-spacing: -0.005em;
+    font-style: italic;
+    letter-spacing: -0.015em;
   }
 
-  /* Icon-only square button — use .oe-btn-icon + size modifier */
-  .oe-btn-icon { padding: 0; width: 34px; }
-  .oe-btn-icon.oe-btn-sm { width: 28px; }
-  .oe-btn-icon.oe-btn-lg { width: 40px; }
-
-  /* Inputs */
+  /* ── Inputs ───────────────────────────────────────────────────────── */
   .oe-input {
-    width: 100%; height: 40px;
-    background: var(--oe-bg);
-    border: 1px solid var(--oe-border);
+    width: 100%; height: 36px;
+    background: var(--oe-bg-tertiary);
+    border: 1px solid var(--oe-border-light);
     border-radius: var(--oe-radius-sm);
     padding: 0 12px;
     color: var(--oe-text-primary);
     font-size: 14px;
-    transition: border-color 200ms, box-shadow 200ms;
+    transition: border-color 160ms, box-shadow 160ms, background-color 160ms;
   }
   .oe-input::placeholder { color: var(--oe-text-tertiary); }
-  .oe-input:focus { border-color: var(--oe-blue); box-shadow: 0 0 0 3px rgba(137, 207, 240, 0.25); outline: none; }
+  .oe-input:focus {
+    border-color: var(--oe-accent);
+    box-shadow: 0 0 0 3px var(--oe-accent-ring);
+    background: var(--oe-bg-elevated);
+    outline: none;
+  }
 
-  /* Tables */
+  /* ── Tabs (pill) ──────────────────────────────────────────────────── */
+  .oe-tab-row {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--oe-bg-tertiary);
+    border: 1px solid var(--oe-border-light);
+    border-radius: 9999px;
+  }
+  .oe-tab {
+    height: 28px; padding: 0 14px;
+    border-radius: 9999px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--oe-text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background-color 140ms, color 140ms;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .oe-tab:hover { color: var(--oe-text-primary); }
+  .oe-tab[data-active="true"], .oe-tab.is-active {
+    background: var(--oe-bg-elevated);
+    color: var(--oe-text-primary);
+    box-shadow: inset 0 0 0 1px var(--oe-border-light);
+  }
+
+  /* ── Badge ────────────────────────────────────────────────────────── */
+  .oe-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 8px;
+    border-radius: 9999px;
+    font-family: var(--font-family-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--oe-bg-tertiary);
+    color: var(--oe-text-secondary);
+    border: 1px solid var(--oe-border-light);
+  }
+  .oe-badge[data-variant="accent"] { background: var(--oe-accent-soft-bg); color: var(--oe-accent); border-color: color-mix(in oklch, var(--oe-accent) 25%, transparent); }
+  .oe-badge[data-variant="info"] { background: var(--oe-info-bg); color: var(--oe-info); border-color: color-mix(in oklch, var(--oe-info) 25%, transparent); }
+  .oe-badge[data-variant="success"] { background: var(--oe-success-bg); color: var(--oe-success); border-color: color-mix(in oklch, var(--oe-success) 25%, transparent); }
+  .oe-badge[data-variant="warning"] { background: var(--oe-warning-bg); color: var(--oe-warning); border-color: color-mix(in oklch, var(--oe-warning) 25%, transparent); }
+  .oe-badge[data-variant="error"] { background: var(--oe-error-bg); color: var(--oe-error); border-color: color-mix(in oklch, var(--oe-error) 25%, transparent); }
+
+  /* ── Tables (dense, Stripe-density) ───────────────────────────────── */
   .oe-table { width: 100%; border-collapse: collapse; }
   .oe-table th {
-    text-align: left; padding: 10px 16px;
-    font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--oe-text-tertiary);
-    background: var(--oe-bg-secondary);
+    text-align: left; padding: 10px 14px;
+    font-family: var(--font-family-mono);
+    font-size: 10.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--oe-text-quaternary);
+    background: transparent;
+    border-bottom: 1px solid var(--oe-border-light);
   }
   .oe-table td {
-    padding: 10px 16px;
+    height: 36px;
+    padding: 0 14px;
     border-bottom: 1px solid var(--oe-border-light);
     font-size: 13px;
     color: var(--oe-text-primary);
+    vertical-align: middle;
   }
+  .oe-table tr:last-child td { border-bottom: 0; }
   .oe-table tr:hover td { background: var(--oe-bg-secondary); }
+  .oe-table .oe-num { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; text-align: right; }
 
-  /* Animations */
-  .oe-fade-in { animation: oeFadeIn 0.2s ease-out; }
-  .oe-slide-in { animation: oeSlideIn 0.25s cubic-bezier(0.25, 0.1, 0.25, 1); }
+  /* ── Animations ───────────────────────────────────────────────────── */
+  .oe-fade-in { animation: oeFadeIn 0.22s var(--ease-oe); }
+  .oe-slide-in { animation: oeSlideIn 0.25s var(--ease-oe); }
 
   @keyframes oeFadeIn {
     from { opacity: 0; transform: translateY(4px); }
@@ -435,43 +540,52 @@
     100% { background-position: -200% 0; }
   }
 
-  /* Font size utilities */
   .text-2xs { font-size: 11px; line-height: 1.4; }
 
-  /* Floating chrome — shared pill surface for the command bar, user menu,
-     and breadcrumb. Dark translucent glass with backdrop blur. */
+  /* ── Floating chrome (command bar, dropdowns) ─────────────────────── */
   .kcc-floating-surface {
-    background: rgba(15, 17, 23, 0.82);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: color-mix(in oklch, var(--oe-bg) 78%, transparent);
+    border: 1px solid color-mix(in oklch, white 6%, var(--oe-border-light));
     border-radius: 9999px;
     box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.45),
-      0 1px 2px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(24px) saturate(1.4);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      0 16px 50px -12px rgb(0 0 0 / 0.55),
+      0 1px 2px rgb(0 0 0 / 0.3),
+      inset 0 1px 0 rgb(255 255 255 / 0.04);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
   }
-  :root:not(.dark) .kcc-floating-surface {
-    background: rgba(255, 255, 255, 0.88);
-    border-color: rgba(0, 0, 0, 0.06);
-    box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.15),
-      0 1px 2px rgba(0, 0, 0, 0.05);
+  .kcc-floating-surface.kcc-floating-panel { border-radius: 20px; }
+
+  /* ── Atmosphere — global grain + vignette ─────────────────────────── */
+  .kcc-grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.10;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size: 220px 220px;
   }
-  /* Inner elements inside the surface can override to not be fully rounded
-     (dropdowns use 20 px), so the pill radius only applies when the element
-     is itself the surface. The dropdowns set their own border-radius. */
-  .kcc-floating-surface.kcc-floating-panel {
-    border-radius: 20px;
+  .kcc-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      rgb(0 0 0 / 0.35) 100%
+    );
   }
 
-  /* Fade-end text mask — long labels dissolve into transparency past 50%. */
+  /* Fade-end mask for long labels */
   .kcc-fade-end {
     mask-image: linear-gradient(to right, #000 0%, #000 50%, transparent 100%);
     -webkit-mask-image: linear-gradient(to right, #000 0%, #000 50%, transparent 100%);
   }
 
-  /* Shimmer effect for rotating placeholder text. */
+  /* Shimmer effect for rotating placeholder text */
   @keyframes kccShimmerSweep {
     0% { background-position: 200% 50%; }
     100% { background-position: -100% 50%; }
@@ -479,36 +593,20 @@
   .kcc-shimmer {
     background-image: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.32) 0%,
-      rgba(255, 255, 255, 0.32) 40%,
-      rgba(255, 255, 255, 0.9) 50%,
-      rgba(255, 255, 255, 0.32) 60%,
-      rgba(255, 255, 255, 0.32) 100%
+      rgb(255 255 255 / 0.32) 0%,
+      rgb(255 255 255 / 0.32) 40%,
+      rgb(255 255 255 / 0.9) 50%,
+      rgb(255 255 255 / 0.32) 60%,
+      rgb(255 255 255 / 0.32) 100%
     );
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    /* Slow sweep for an immersive, calm feel. */
     animation: kccShimmerSweep 6s ease-in-out infinite;
   }
-  :root:not(.dark) .kcc-shimmer {
-    background-image: linear-gradient(
-      90deg,
-      rgba(60, 60, 66, 0.55) 0%,
-      rgba(60, 60, 66, 0.55) 40%,
-      rgba(60, 60, 66, 1) 50%,
-      rgba(60, 60, 66, 0.55) 60%,
-      rgba(60, 60, 66, 0.55) 100%
-    );
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
 
-  /* KSS accordion scroll area — subtle fade-in/out at top and bottom edges
-     to signal more content exists. Uses mask-image on the container. */
+  /* KSS accordion scroll fade */
   .kss-scroll-area {
     mask-image: linear-gradient(
       to bottom,

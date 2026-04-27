@@ -1,29 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono, Lora } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
+import { Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import { ClientShell } from './client-shell';
 
-// Inter Variable for UI chrome — Linear / Vercel / Granola convention.
-// cv11 (single-story a), ss01 (open digits), ss03 (curved l) feature flags
-// give it a "designed" rather than default look.
-const inter = Inter({
-  subsets: ['latin', 'cyrillic'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-// JetBrains Mono with tabular-nums for entity counts, dimensions, prices.
-const jetbrainsMono = JetBrains_Mono({
+// Display serif used sparingly — empty-state headlines, the once-per-page
+// italic accent. Matches the landing page (marketing/app/layout.tsx).
+const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-});
-
-// Lora — humanist serif. Used ONLY on AI-generated long-form prose
-// (the drawing summary and KSS descriptions inside the editor) so that
-// content reads as content, distinct from the chrome.
-const lora = Lora({
-  subsets: ['latin', 'cyrillic'],
+  weight: '400',
+  style: 'italic',
   variable: '--font-display',
   display: 'swap',
 });
@@ -51,7 +38,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'KCC Automation' }],
   formatDetection: { telephone: false, address: false, email: false },
   robots: {
-    index: false, // internal product UI; auth-gated; no public indexing
+    index: false,
     follow: false,
     nocache: true,
   },
@@ -69,16 +56,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${jetbrainsMono.variable} ${lora.variable}`}
+      className={`dark ${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable}`}
     >
       <body
         className="min-h-screen font-sans"
         style={{
-          background: 'var(--oe-bg-primary)',
+          background: 'var(--oe-bg)',
           color: 'var(--oe-text-primary)',
-          fontFeatureSettings: '"cv11", "ss01", "ss03"',
+          fontFeatureSettings: '"ss01", "cv11", "liga", "kern", "calt"',
         }}
       >
+        <div className="kcc-grain" aria-hidden />
+        <div className="kcc-vignette" aria-hidden />
         <ClientShell>{children}</ClientShell>
       </body>
     </html>

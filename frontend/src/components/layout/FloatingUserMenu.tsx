@@ -59,7 +59,11 @@ export function FloatingUserMenu() {
           onClick={() => router.push('/dashboard')}
           title="Начало"
           aria-label="Начало"
-          className="group w-10 h-10 flex items-center justify-center rounded-full bg-sky-400/15 hover:bg-sky-400/25 text-sky-300 transition-all duration-200 hover:scale-[1.03] active:scale-95"
+          className="group w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.03] active:scale-95"
+          style={{
+            background: 'var(--oe-accent-soft-bg)',
+            color: 'var(--oe-accent)',
+          }}
         >
           <Home size={16} strokeWidth={2.25} className="transition-transform group-hover:-rotate-6" />
         </button>

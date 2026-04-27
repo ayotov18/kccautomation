@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard,
-  FileSpreadsheet,
   FolderArchive,
   Tag,
   Settings,
@@ -53,8 +52,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={16} strokeWidth={1.75} /> },
       { label: 'Files', path: '/files', icon: <FolderArchive size={16} strokeWidth={1.75} /> },
-      { label: 'Reports', path: '/reports/kss', icon: <FileSpreadsheet size={16} strokeWidth={1.75} /> },
-      { label: 'Prices & Data', path: '/prices', icon: <Tag size={16} strokeWidth={1.75} /> },
+      { label: 'Prices', path: '/prices', icon: <Tag size={16} strokeWidth={1.75} /> },
     ],
   },
 ];
@@ -157,23 +155,16 @@ function SidebarGroup({
 
 function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const pathname = usePathname();
-  // Drawings route also owns the KSS report subtree (per new IA).
   const isActive = (() => {
     if (item.path === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
     }
-    if (item.path === '/reports/kss') {
+    if (item.path === '/files') {
+      // Files now owns drawings + projects + offers, including the per-drawing KSS subtree.
       return (
-        pathname === '/reports/kss' ||
-        pathname.startsWith('/reports/kss/') ||
-        // legacy route still redirects here; treat it as active too
-        /^\/drawings\/[^/]+\/kss(\/|$)/.test(pathname)
-      );
-    }
-    if (item.path === '/drawings') {
-      return (
-        pathname === '/drawings' ||
-        (pathname.startsWith('/drawings/') && !pathname.includes('/kss'))
+        pathname === '/files' ||
+        pathname.startsWith('/files/') ||
+        pathname.startsWith('/drawings/')
       );
     }
     return pathname === item.path || pathname.startsWith(item.path + '/');

@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import type { ScrapedPriceItem, ScrapeSource } from '@/types';
 import { PriceLibrarySection } from '@/components/prices/PriceLibrarySection';
 import { QuantityNormsSection } from '@/components/prices/QuantityNormsSection';
+import { PricingDefaultsSection } from '@/components/prices/PricingDefaultsSection';
 
 interface PriceListInfo {
   id: string;
@@ -46,6 +47,10 @@ export default function PricesPage() {
 
   // Upload
   const [uploading, setUploading] = useState(false);
+
+  // Active tab. The prices page is multi-faceted but one screen — tabs keep
+  // the page short and let users land in the section that matches their task.
+  const [tab, setTab] = useState<'library' | 'defaults' | 'norms' | 'browse'>('library');
 
   const fetchPriceLists = useCallback(async () => {
     try {
@@ -192,26 +197,45 @@ export default function PricesPage() {
 
   return (
     <div className="oe-fade-in">
-<div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-content-primary">
-            Prices &amp; Sources
+      <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+        <header className="space-y-2">
+          <div className="oe-eyebrow">Prices</div>
+          <h1 className="text-[26px] font-semibold tracking-[-0.025em] text-content-primary">
+            Your price intelligence
           </h1>
-          <p className="mt-1 text-[12.5px] text-content-tertiary">
-            Everything price-related in one place — your XLSX offer library, CSV
-            price lists, scrape sources, and the searchable browser. Link an
-            offer to a drawing for 1:1 RAG generation.
+          <p className="text-[12.5px] text-content-tertiary max-w-xl">
+            Library for RAG, defaults injected into AI prompts, quantity norms
+            as anchors, and a browse view of scraped + manual prices. Link any
+            offer to a drawing for 1:1 generation.
           </p>
+        </header>
+
+        <div className="oe-tab-row">
+          {(
+            [
+              ['library', 'Library'],
+              ['defaults', 'Defaults'],
+              ['norms', 'Norms'],
+              ['browse', 'Browse'],
+            ] as Array<[typeof tab, string]>
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              data-active={tab === k}
+              className="oe-tab"
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* My Price Library — XLSX offers, drawing-linked. The RAG source
-            of truth. Lives here so users don't have to bounce between pages. */}
-        <PriceLibrarySection />
+        {tab === 'library' && <PriceLibrarySection />}
+        {tab === 'defaults' && <PricingDefaultsSection />}
+        {tab === 'norms' && <QuantityNormsSection />}
 
-        {/* Quantity norms — formerly /data/quantities. Same 4 tabs, embedded
-            so the navbar stays small. */}
-        <QuantityNormsSection />
-
+        {tab === 'browse' && (
+          <>
         {/* My Price Lists */}
         <section className="oe-card p-6">
           <div className="flex items-center justify-between mb-4">
@@ -518,6 +542,8 @@ export default function PricesPage() {
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

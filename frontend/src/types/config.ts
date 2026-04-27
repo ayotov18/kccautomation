@@ -95,7 +95,8 @@ export const DEFAULT_ANALYSIS_CONFIG: AnalysisConfig = {
 // === Pricing defaults (Bulgarian КСС) ===
 //
 // Values derived from BG industry research (СЕК, УСН, 2026 market).
-// Every number is user-configurable on /settings/pricing and persists per-user.
+// Every number is user-configurable inside /prices (Pricing defaults section)
+// and persists per-user.
 
 export type PricingCurrency = 'EUR' | 'EUR';
 

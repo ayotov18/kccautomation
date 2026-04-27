@@ -25,10 +25,10 @@ export function AppShell({ children }: AppShellProps) {
   }, [initTheme]);
 
   return (
-    <div className="relative h-screen overflow-hidden">
+    <div className="relative h-screen overflow-hidden" style={{ zIndex: 2 }}>
       <main
         className={clsx(
-          'h-full overflow-y-auto bg-[var(--oe-bg-secondary)]',
+          'h-full overflow-y-auto bg-transparent',
           // Reserve space so the floating pills never cover content.
           'pt-[72px] pb-[104px]',
         )}

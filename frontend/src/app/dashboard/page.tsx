@@ -1,17 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FileText, FolderArchive, Tag, Upload } from 'lucide-react';
+import { ArrowUpRight, FileText, FolderArchive, Tag, Upload, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
+import type { Drawing } from '@/types';
+import { Sparkline } from '@/components/ui/Sparkline';
+
+// Synthetic 14-day spark data — proxies usage trend until we wire up
+// actual analytics. Stable per session so the cards don't dance on every
+// re-render.
+function pseudoSpark(seed: number, len = 14): number[] {
+  const out: number[] = [];
+  let v = seed;
+  for (let i = 0; i < len; i++) {
+    v = Math.max(0, v + Math.sin(i * 1.3 + seed) * 0.6 + (i / len));
+    out.push(v);
+  }
+  return out;
+}
 
 export default function DashboardPage() {
-  const [drawingCount, setDrawingCount] = useState(0);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [offerCount, setOfferCount] = useState(0);
   const [corpusRows, setCorpusRows] = useState(0);
 
   useEffect(() => {
-    api.listDrawings().then((d) => setDrawingCount(d.length)).catch(() => {});
+    api.listDrawings().then(setDrawings).catch(() => {});
     api
       .listCorpusImports()
       .then((d) => {
@@ -21,91 +36,252 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  const cards = [
+  const drawingCount = drawings.length;
+  const recent = useMemo(
+    () =>
+      [...drawings]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 5),
+    [drawings],
+  );
+
+  const kpis = [
     {
-      label: 'Files',
-      value: drawingCount + offerCount,
-      hint: `${drawingCount} drawings · ${offerCount} offers`,
-      icon: FolderArchive,
-      href: '/files',
-    },
-    {
-      label: 'Reports',
+      eyebrow: 'Drawings',
       value: drawingCount,
-      hint: 'KSS exports per drawing',
-      icon: FileText,
-      href: '/reports/kss',
+      hint: 'DWG · DXF imports',
+      href: '/files',
+      spark: pseudoSpark(drawingCount + 2),
+      tone: 'accent' as const,
     },
     {
-      label: 'Prices in library',
+      eyebrow: 'Offers',
+      value: offerCount,
+      hint: 'XLSX uploaded to library',
+      href: '/files?type=offers',
+      spark: pseudoSpark(offerCount + 5),
+      tone: 'info' as const,
+    },
+    {
+      eyebrow: 'Priced rows',
       value: corpusRows,
-      hint: `${offerCount} uploaded offers`,
-      icon: Tag,
+      hint: 'available for RAG',
       href: '/prices',
+      spark: pseudoSpark(corpusRows / 50 + 4),
+      tone: 'success' as const,
+    },
+    {
+      eyebrow: 'Reports',
+      value: drawingCount,
+      hint: 'one KSS per drawing',
+      href: '/files',
+      spark: pseudoSpark(drawingCount + 7),
+      tone: 'warning' as const,
     },
   ];
 
   return (
     <div className="oe-fade-in">
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-content-primary">
-            Dashboard
+      <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
+        {/* Hero */}
+        <header className="space-y-3">
+          <div className="oe-eyebrow">Workspace</div>
+          <h1 className="text-[34px] leading-[1.05] font-semibold tracking-[-0.025em] text-content-primary">
+            Welcome back. <span className="oe-display text-content-secondary">Let&rsquo;s ship a quote.</span>
           </h1>
-          <p className="mt-1 text-[12.5px] text-content-tertiary">
-            Three places matter: <Link href="/files" className="underline hover:text-sky-300">Files</Link>,{' '}
-            <Link href="/reports/kss" className="underline hover:text-sky-300">Reports</Link>, and{' '}
-            <Link href="/prices" className="underline hover:text-sky-300">Prices &amp; Data</Link>. Everything else is reachable from one of those.
+          <p className="text-[13.5px] text-content-tertiary max-w-xl">
+            Two surfaces:{' '}
+            <Link href="/files" className="text-content-secondary hover:text-content-primary underline decoration-content-tertiary/40 underline-offset-4">
+              Files
+            </Link>{' '}
+            (drawings + offers, KSS opens from each drawing) and{' '}
+            <Link href="/prices" className="text-content-secondary hover:text-content-primary underline decoration-content-tertiary/40 underline-offset-4">
+              Prices
+            </Link>{' '}
+            (your library, defaults, norms).
           </p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {cards.map((c) => (
+        {/* KPI strip */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {kpis.map((k) => (
             <Link
-              key={c.label}
-              href={c.href}
-              className="oe-card p-5 hover:bg-surface-secondary/30 transition-colors"
+              key={k.eyebrow}
+              href={k.href}
+              className="oe-kpi group hover:border-[color:var(--oe-border)]"
             >
-              <div className="flex items-center justify-between mb-3">
-                <c.icon className="w-5 h-5 text-content-tertiary" />
+              <div className="flex items-center justify-between">
+                <span className="oe-eyebrow">{k.eyebrow}</span>
+                <ArrowUpRight
+                  size={13}
+                  className="text-content-quaternary opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               </div>
-              <div className="text-3xl font-semibold font-numeric text-content-primary">
-                {c.value.toLocaleString('en-GB')}
-              </div>
-              <div className="mt-1 text-[12.5px] text-content-tertiary">{c.label}</div>
-              <div className="mt-1 text-[11px] text-content-tertiary/70 font-numeric">
-                {c.hint}
+              <div className="oe-kpi-value">{k.value.toLocaleString('en-GB')}</div>
+              <div className="flex items-end justify-between gap-3 mt-1">
+                <span className="oe-kpi-label">{k.hint}</span>
+                <span
+                  className="flex-none"
+                  style={{
+                    color:
+                      k.tone === 'accent'
+                        ? 'var(--oe-accent)'
+                        : k.tone === 'info'
+                          ? 'var(--oe-info)'
+                          : k.tone === 'success'
+                            ? 'var(--oe-success)'
+                            : 'var(--oe-warning)',
+                  }}
+                >
+                  <Sparkline data={k.spark} width={72} height={22} />
+                </span>
               </div>
             </Link>
           ))}
-        </div>
+        </section>
 
-        <div className="oe-card p-5">
-          <h3 className="text-sm font-medium text-content-primary mb-3">Quick actions</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Link
-              href="/drawings/upload"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition-colors text-sm"
-            >
-              <Upload className="w-4 h-4 text-content-tertiary" />
-              <span className="text-content-secondary">Upload drawing</span>
-            </Link>
-            <Link
-              href="/prices"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition-colors text-sm"
-            >
-              <Tag className="w-4 h-4 text-content-tertiary" />
-              <span className="text-content-secondary">Upload offer (XLSX)</span>
-            </Link>
-            <Link
-              href="/files"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-secondary/50 transition-colors text-sm"
-            >
-              <FolderArchive className="w-4 h-4 text-content-tertiary" />
-              <span className="text-content-secondary">Browse all files</span>
+        {/* Recent drawings */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="oe-eyebrow">Recent</div>
+              <h2 className="oe-section-title mt-1">Drawings</h2>
+            </div>
+            <Link href="/files" className="oe-btn-ghost oe-btn-sm">
+              All files →
             </Link>
           </div>
-        </div>
+
+          {recent.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="oe-card overflow-hidden">
+              <table className="oe-table">
+                <thead>
+                  <tr>
+                    <th>Filename</th>
+                    <th className="!text-right">Entities</th>
+                    <th>Format</th>
+                    <th>Imported</th>
+                    <th className="w-24"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((d) => (
+                    <tr key={d.id}>
+                      <td className="font-medium">{d.filename}</td>
+                      <td className="oe-num text-content-secondary">
+                        {(d.entity_count ?? 0).toLocaleString('en-GB')}
+                      </td>
+                      <td className="text-content-tertiary uppercase text-[11px] font-numeric">
+                        {d.original_format}
+                      </td>
+                      <td className="text-content-tertiary text-[12px]">
+                        {new Date(d.created_at).toLocaleDateString('en-GB')}
+                      </td>
+                      <td className="text-right">
+                        <Link
+                          href={`/drawings/${d.id}/kss`}
+                          className="text-[12px] text-content-secondary hover:text-content-primary"
+                        >
+                          Open KSS →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Quick actions */}
+        <section className="space-y-3">
+          <div className="oe-eyebrow">Quick actions</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ActionTile
+              icon={<Upload size={15} />}
+              label="Upload drawing"
+              hint="DWG or DXF · multi-module"
+              href="/files?upload=drawing"
+            />
+            <ActionTile
+              icon={<Tag size={15} />}
+              label="Upload offer"
+              hint="XLSX → price corpus"
+              href="/files?upload=offer"
+            />
+            <ActionTile
+              icon={<FolderArchive size={15} />}
+              label="Browse files"
+              hint="drawings + offers"
+              href="/files"
+            />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ActionTile({
+  icon,
+  label,
+  hint,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="oe-card-interactive flex items-center gap-3 px-4 py-3"
+    >
+      <span
+        className="flex-none w-8 h-8 rounded-full flex items-center justify-center"
+        style={{
+          background: 'var(--oe-bg-tertiary)',
+          color: 'var(--oe-text-secondary)',
+        }}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] text-content-primary truncate">{label}</div>
+        <div className="text-[11.5px] text-content-tertiary truncate">{hint}</div>
+      </div>
+      <ArrowUpRight size={14} className="text-content-quaternary" />
+    </Link>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="oe-card px-6 py-16 text-center">
+      <FileText
+        size={20}
+        className="mx-auto text-content-quaternary"
+        strokeWidth={1.5}
+      />
+      <h3 className="mt-4 oe-display text-[24px] text-content-secondary">
+        Nothing here yet.
+      </h3>
+      <p className="mt-1 text-[12.5px] text-content-tertiary">
+        Drop a DWG or paste a XLSX offer to get started.
+      </p>
+      <div className="mt-5 flex items-center justify-center gap-2">
+        <Link href="/files?upload=drawing" className="oe-btn-primary oe-btn-sm">
+          <Sparkles size={13} /> Upload drawing
+        </Link>
+        <Link href="/files?upload=offer" className="oe-btn-secondary oe-btn-sm">
+          <Tag size={13} /> Upload offer
+        </Link>
       </div>
     </div>
   );

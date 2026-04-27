@@ -10,7 +10,6 @@ import {
 import { useRouter } from 'next/navigation';
 import {
   ArrowUp,
-  FileSpreadsheet,
   FileText,
   LayoutDashboard,
   Tag,
@@ -48,31 +47,21 @@ interface ActionCmd {
 
 const ROUTES: Route[] = [
   { id: 'dashboard', label: 'Dashboard', labelBg: 'Табло', path: '/dashboard', group: 'Работа', icon: <LayoutDashboard size={14} />, keywords: ['начало', 'home', 'overview'] },
-  { id: 'files', label: 'Files', labelBg: 'Файлове', path: '/files', group: 'Работа', icon: <FolderArchive size={14} />, keywords: ['files', 'uploads', 'drawings', 'projects', 'offers', 'documents', 'dwg', 'dxf'] },
-  { id: 'reports', label: 'Reports', labelBg: 'Отчети', path: '/reports/kss', group: 'Работа', icon: <FileSpreadsheet size={14} />, keywords: ['кcс', 'kss', 'количествено', 'стойностна', 'сметка', 'boq', 'bills'] },
-  { id: 'prices', label: 'Prices & Data', labelBg: 'Цени и данни', path: '/prices', group: 'Работа', icon: <Tag size={14} />, keywords: ['цени', 'market', 'database', 'library', 'offer', 'xlsx', 'csv', 'норми', 'количества'] },
-  { id: 'pricing', label: 'Pricing Defaults', labelBg: 'Ценови настройки', path: '/settings/pricing', group: 'Настройки', icon: <Tag size={14} />, keywords: ['prices', 'ддс', 'vat', 'печалба', 'непредвидени', 'труд', 'ставки', 'eur', '€'] },
+  { id: 'files', label: 'Files', labelBg: 'Файлове', path: '/files', group: 'Работа', icon: <FolderArchive size={14} />, keywords: ['files', 'uploads', 'drawings', 'projects', 'offers', 'documents', 'dwg', 'dxf', 'kss', 'кcс', 'отчети', 'reports'] },
+  { id: 'prices', label: 'Prices', labelBg: 'Цени', path: '/prices', group: 'Работа', icon: <Tag size={14} />, keywords: ['цени', 'market', 'database', 'library', 'offer', 'xlsx', 'csv', 'норми', 'количества', 'ддс', 'vat', 'печалба', 'ставки', 'eur', '€'] },
   { id: 'settings', label: 'Settings', labelBg: 'Настройки', path: '/settings', group: 'Настройки', icon: <Settings size={14} />, keywords: ['config', 'настройки'] },
 ];
 
-/** Shimmer hints are the exact routes of the old navbar — gives discoverability. */
+/** Shimmer hints surface what's reachable from the bar. */
 const SHIMMER_HINTS = [
-  'Dashboard',
-  'Drawings',
-  'Projects',
-  'Schedule & Cost',
-  'КСС (Bills of Quantities)',
-  'BoQ Editor',
-  'Tendering',
-  'Validation',
-  'Cost Database',
-  'Assemblies',
-  'Price Management',
-  'Количества & Норми',
+  'Табло',
+  'Файлове',
+  'Чертежи',
+  'КСС отчети',
+  'Цени и оферти',
   'Ценови настройки',
-  'Documents (CDE)',
-  'DRM Learning',
-  'Settings',
+  'Количества & Норми',
+  'Настройки',
 ];
 
 function fuzzyScore(query: string, target: string): number {
@@ -149,7 +138,7 @@ export function FloatingCommandBar() {
         labelBg: 'Качи чертеж',
         icon: <Upload size={14} />,
         keywords: ['upload', 'качи', 'нов'],
-        run: () => router.push('/drawings?upload=1'),
+        run: () => router.push('/files?upload=drawing'),
       },
       {
         id: 'ask-ai',
@@ -327,10 +316,10 @@ export function FloatingCommandBar() {
               type="button"
               onClick={() => setFilter(filter === g ? null : g)}
               className={clsx(
-                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors',
+                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border',
                 filter === g
-                  ? 'bg-sky-400/15 text-sky-300 border border-sky-400/30'
-                  : 'text-content-tertiary hover:text-content-secondary border border-transparent',
+                  ? 'border-[color:var(--oe-accent)]/30 text-[color:var(--oe-accent)] bg-[color:var(--oe-accent-soft-bg)]'
+                  : 'text-content-tertiary hover:text-content-secondary border-transparent',
               )}
             >
               {g}
@@ -389,7 +378,7 @@ export function FloatingCommandBar() {
               if (item) activate(item);
             }}
             disabled={flatResults.length === 0}
-            className="flex-none w-8 h-8 flex items-center justify-center rounded-full bg-sky-400 hover:bg-sky-300 text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex-none w-8 h-8 flex items-center justify-center rounded-full bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] text-[color:oklch(0.14_0.012_260)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Изпрати"
           >
             <ArrowUp size={14} strokeWidth={2.5} />
@@ -427,13 +416,13 @@ function ResultRow({
       onClick={onClick}
       className={clsx(
         'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
-        active ? 'bg-sky-400/10' : 'hover:bg-white/5',
+        active ? 'bg-[color:var(--oe-accent-soft-bg)]' : 'hover:bg-white/5',
       )}
     >
       <span
         className={clsx(
           'flex-none w-6 h-6 rounded-full flex items-center justify-center',
-          active ? 'bg-sky-400/20 text-sky-300' : 'bg-white/5 text-content-secondary',
+          active ? 'bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)]' : 'bg-white/5 text-content-secondary',
         )}
       >
         {icon}
