@@ -214,14 +214,15 @@ export default function PricesPage() {
         <div className="oe-tab-row">
           {(
             [
-              ['library', 'Library'],
-              ['defaults', 'Defaults'],
-              ['norms', 'Norms'],
-              ['browse', 'Browse'],
-            ] as Array<[typeof tab, string]>
-          ).map(([k, label]) => (
+              ['library', 'Library', 'your data'],
+              ['defaults', 'Defaults', 'your settings'],
+              ['norms', 'Norms', 'reference'],
+              ['browse', 'Browse', 'scraped'],
+            ] as Array<[typeof tab, string, string]>
+          ).map(([k, label, hint]) => (
             <button
               key={k}
+              title={hint}
               onClick={() => setTab(k)}
               data-active={tab === k}
               className="oe-tab"
@@ -469,9 +470,9 @@ export default function PricesPage() {
                         {p.is_manual ? (
                           <span className="bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded">manual</span>
                         ) : p.is_user_edited ? (
-                          <span className="bg-sky-900/40 text-sky-200 px-1.5 py-0.5 rounded">edited</span>
+                          <span className="bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] px-1.5 py-0.5 rounded">edited</span>
                         ) : p.site === 'ai_research' ? (
-                          <span className="bg-sky-900/40 text-sky-300 px-1.5 py-0.5 rounded">AI research</span>
+                          <span className="bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] px-1.5 py-0.5 rounded">AI research</span>
                         ) : (
                           <span className="text-content-tertiary">{p.site}</span>
                         )}

@@ -93,7 +93,7 @@ export default function DrawingViewerPage() {
 
           {loading && !renderPacket && (
             <div className="absolute top-4 left-4 flex items-center gap-2 bg-surface-elevated/80 backdrop-blur-sm px-3 py-2 rounded-lg z-10 border border-border-light">
-              <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-[color:var(--oe-accent)] animate-pulse" />
               <span className="text-content-secondary text-xs">Loading KCC overlay…</span>
             </div>
           )}

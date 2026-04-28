@@ -62,11 +62,15 @@ export function PricingDefaultsSection() {
     <section className="oe-card p-5 space-y-5">
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-base font-medium text-content-primary">Pricing defaults</h2>
+          <h2 className="text-base font-medium text-content-primary">
+            Pricing defaults{' '}
+            <span className="oe-badge ml-2" data-variant="info">your settings</span>
+          </h2>
           <p className="mt-1 text-[12.5px] text-content-tertiary max-w-xl">
-            Стойностите се инжектират в AI заявката и се използват като позиции
-            по подразбиране във всяка генерирана КСС. Промените се прилагат при
-            следващата генерация.
+            Markups (contingency / delivery / profit / VAT) and labour-rate
+            bands the AI uses on every generated КСС. <strong>Skipped</strong>{' '}
+            when an offer is pinned to a drawing — the offer becomes the
+            source of truth and only VAT is applied on top.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -105,19 +109,19 @@ export function PricingDefaultsSection() {
                     onClick={() => applyPreset(p.id)}
                     className={`text-left rounded-xl px-4 py-3 border transition-colors ${
                       active
-                        ? 'border-sky-400/50 bg-sky-500/10'
+                        ? 'border-[color:var(--oe-accent)]/50 bg-[color:var(--oe-accent-soft-bg)]'
                         : 'border-border-light hover:border-border hover:bg-surface-secondary/60'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span
                         className={`text-sm font-medium ${
-                          active ? 'text-sky-300' : 'text-content-primary'
+                          active ? 'text-[color:var(--oe-accent)]' : 'text-content-primary'
                         }`}
                       >
                         {p.label}
                       </span>
-                      {active && <Check size={14} className="text-sky-300" />}
+                      {active && <Check size={14} className="text-[color:var(--oe-accent)]" />}
                     </div>
                     <p className="text-xs text-content-tertiary mt-0.5">{p.description}</p>
                   </button>

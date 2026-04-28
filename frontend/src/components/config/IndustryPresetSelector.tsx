@@ -5,14 +5,14 @@ import { INDUSTRY_PRESETS } from '@/types/config';
 
 const accentColors: Record<IndustryContext, string> = {
   automotive: 'border-l-blue-600',
-  aerospace: 'border-l-sky-500',
-  construction_en1090: 'border-l-sky-500',
+  aerospace: 'border-l-[color:var(--oe-accent)]',
+  construction_en1090: 'border-l-[color:var(--oe-accent)]',
 };
 
 const selectedBg: Record<IndustryContext, string> = {
   automotive: 'bg-blue-950/30 border-blue-700',
-  aerospace: 'bg-sky-950/30 border-sky-500',
-  construction_en1090: 'bg-sky-950/30 border-sky-700',
+  aerospace: 'bg-[color:var(--oe-accent-soft-bg)] border-[color:var(--oe-accent)]',
+  construction_en1090: 'bg-[color:var(--oe-accent-soft-bg)] border-[color:var(--oe-accent)]',
 };
 
 interface Props {

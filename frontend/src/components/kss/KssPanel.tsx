@@ -116,8 +116,8 @@ export function KssPanel({ drawingId }: Props) {
         onClick={() => setOpen(!open)}
         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           open
-            ? 'bg-sky-500 text-gray-900'
-            : 'bg-sky-500/90 text-gray-900 hover:bg-sky-400'
+            ? 'bg-[color:var(--oe-accent)] text-gray-900'
+            : 'bg-[color:var(--oe-accent)]/90 text-gray-900 hover:bg-[color:var(--oe-accent-hot)]'
         }`}
         title="Generate KSS (Bill of Quantities)"
       >
@@ -171,7 +171,7 @@ export function KssPanel({ drawingId }: Props) {
             <button
               onClick={handleGenerate}
               disabled={!drawingId}
-              className="w-full px-3 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
+              className="w-full px-3 py-2 bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
             >
               Generate KSS
             </button>
@@ -181,12 +181,12 @@ export function KssPanel({ drawingId }: Props) {
           {generating && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-[color:var(--oe-accent)] animate-pulse" />
                 <span className="text-xs text-gray-400">Generating...</span>
               </div>
               <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="h-full bg-sky-500 rounded-full transition-all duration-500"
+                  className="h-full bg-[color:var(--oe-accent)] rounded-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -196,19 +196,19 @@ export function KssPanel({ drawingId }: Props) {
           {/* Done — download buttons + editor toggle */}
           {done && (
             <div className="space-y-2">
-              <div className="text-xs text-sky-300 flex items-center gap-1">
+              <div className="text-xs text-[color:var(--oe-accent)] flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 KSS generated
-                <span className="ml-1 px-1.5 py-0.5 bg-sky-900/40 text-sky-300 rounded text-[10px] font-medium">
+                <span className="ml-1 px-1.5 py-0.5 bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] rounded text-[10px] font-medium">
                   AI-enhanced
                 </span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleDownloadExcel}
-                  className="flex-1 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded text-sm text-white transition-colors"
+                  className="flex-1 px-3 py-1.5 bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] rounded text-sm text-white transition-colors"
                 >
                   Excel (.xlsx)
                 </button>
@@ -221,7 +221,7 @@ export function KssPanel({ drawingId }: Props) {
               </div>
               <button
                 onClick={() => setShowEditor(!showEditor)}
-                className="text-xs text-sky-300 hover:text-sky-200 transition-colors"
+                className="text-xs text-[color:var(--oe-accent)] hover:text-[color:var(--oe-accent)] transition-colors"
               >
                 {showEditor ? 'Hide editor' : 'Edit & correct KSS items'}
               </button>
@@ -247,7 +247,7 @@ export function KssPanel({ drawingId }: Props) {
           <div className="max-w-7xl mx-auto p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-sky-300 font-medium uppercase tracking-wider">KSS Editor</span>
+                <span className="text-xs text-[color:var(--oe-accent)] font-medium uppercase tracking-wider">KSS Editor</span>
                 <span className="text-xs text-gray-600">Corrections train the DRM learning system</span>
               </div>
               <button

@@ -142,14 +142,14 @@ export function KssEditor({ drawingId }: Props) {
         </div>
         <div className="flex items-center gap-3">
           {editedCount > 0 && (
-            <span className="text-xs text-sky-300">
+            <span className="text-xs text-[color:var(--oe-accent)]">
               {editedCount} unsaved {editedCount === 1 ? 'change' : 'changes'}
             </span>
           )}
           <button
             onClick={handleSaveCorrections}
             disabled={editedCount === 0 || saving}
-            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-gray-700 disabled:text-gray-500 rounded text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] disabled:bg-gray-700 disabled:text-gray-500 rounded text-sm font-medium transition-colors"
           >
             {saving ? 'Saving...' : 'Save Corrections'}
           </button>
@@ -157,7 +157,7 @@ export function KssEditor({ drawingId }: Props) {
       </div>
 
       {saveResult && (
-        <div className={`text-xs px-3 py-2 rounded ${saveResult.includes('Failed') ? 'bg-red-900/30 text-red-400' : 'bg-sky-900/30 text-sky-300'}`}>
+        <div className={`text-xs px-3 py-2 rounded ${saveResult.includes('Failed') ? 'bg-red-900/30 text-red-400' : 'bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)]'}`}>
           {saveResult}
         </div>
       )}
@@ -180,7 +180,7 @@ export function KssEditor({ drawingId }: Props) {
             {items.map((item, idx) => (
               <tr
                 key={idx}
-                className={`border-b border-gray-800/50 ${item.edited ? 'bg-sky-900/10' : 'hover:bg-gray-800/30'}`}
+                className={`border-b border-gray-800/50 ${item.edited ? 'bg-[color:var(--oe-accent-soft-bg)]' : 'hover:bg-gray-800/30'}`}
               >
                 <td className="px-2 py-1.5 text-gray-500">{item.item_no}</td>
                 <td className="px-2 py-1.5">
@@ -191,12 +191,12 @@ export function KssEditor({ drawingId }: Props) {
                       onChange={(e) => handleEdit(idx, 'sek_code', e.target.value)}
                       onBlur={() => setEditingIdx(null)}
                       autoFocus
-                      className="w-full bg-gray-800 border border-sky-500 rounded px-1.5 py-0.5 text-xs font-mono text-sky-300 focus:outline-none"
+                      className="w-full bg-gray-800 border border-[color:var(--oe-accent)] rounded px-1.5 py-0.5 text-xs font-mono text-[color:var(--oe-accent)] focus:outline-none"
                     />
                   ) : (
                     <span
                       onClick={() => setEditingIdx(idx)}
-                      className={`font-mono text-xs cursor-pointer ${item.edited && item.sek_code !== item.original_sek_code ? 'text-sky-300' : 'text-sky-300'}`}
+                      className={`font-mono text-xs cursor-pointer ${item.edited && item.sek_code !== item.original_sek_code ? 'text-[color:var(--oe-accent)]' : 'text-[color:var(--oe-accent)]'}`}
                       title="Click to edit"
                     >
                       {item.sek_code || '-'}
@@ -232,7 +232,7 @@ export function KssEditor({ drawingId }: Props) {
                 </td>
                 <td className="px-2 py-1.5">
                   {item.edited && (
-                    <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" title="Edited" />
+                    <span className="w-2 h-2 rounded-full bg-[color:var(--oe-accent)] inline-block" title="Edited" />
                   )}
                 </td>
               </tr>
@@ -250,9 +250,9 @@ export function KssEditor({ drawingId }: Props) {
           <div className="space-y-1">
             {corrections.slice(0, 10).map((c) => (
               <div key={c.id} className="text-xs text-gray-500 flex items-center gap-2">
-                <span className="text-sky-300/60">{c.correction_type}</span>
+                <span className="text-[color:var(--oe-accent)]/60">{c.correction_type}</span>
                 {c.original_sek_code && (
-                  <span><span className="text-red-400/60 line-through">{c.original_sek_code}</span> {'->'} <span className="text-sky-300/60">{c.corrected_sek_code}</span></span>
+                  <span><span className="text-red-400/60 line-through">{c.original_sek_code}</span> {'->'} <span className="text-[color:var(--oe-accent)]/60">{c.corrected_sek_code}</span></span>
                 )}
                 {c.corrected_description && (
                   <span className="truncate max-w-xs">{c.corrected_description}</span>
@@ -293,7 +293,7 @@ function EditableCell({
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => e.key === 'Enter' && setEditing(false)}
         autoFocus
-        className={`w-full bg-gray-800 border border-sky-500 rounded px-1.5 py-0.5 text-sm focus:outline-none ${className}`}
+        className={`w-full bg-gray-800 border border-[color:var(--oe-accent)] rounded px-1.5 py-0.5 text-sm focus:outline-none ${className}`}
       />
     );
   }
@@ -301,7 +301,7 @@ function EditableCell({
   return (
     <span
       onClick={() => setEditing(true)}
-      className={`cursor-pointer ${edited ? 'text-sky-200' : ''} ${className}`}
+      className={`cursor-pointer ${edited ? 'text-[color:var(--oe-accent)]' : ''} ${className}`}
       title="Click to edit"
     >
       {value || '-'}

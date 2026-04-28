@@ -305,12 +305,15 @@ export function PriceLibrarySection() {
       {/* Header summary */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-base font-medium text-content-primary">My price library</h2>
+          <h2 className="text-base font-medium text-content-primary">
+            My price library{' '}
+            <span className="oe-badge ml-2" data-variant="accent">your data</span>
+          </h2>
           <p className="mt-1 text-[12.5px] text-content-tertiary">
             <span className="font-numeric text-content-secondary">{totalCorpusRows}</span> priced
             rows from <span className="font-numeric">{imports.length}</span>{' '}
-            {imports.length === 1 ? 'offer' : 'offers'}. Click any cell to edit, link offers
-            to drawings for 1:1 RAG.
+            {imports.length === 1 ? 'offer' : 'offers'} you uploaded. Click any cell to edit,
+            link offers to drawings for 1:1 RAG.
           </p>
         </div>
         <div className="flex items-center gap-2">

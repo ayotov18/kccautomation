@@ -102,7 +102,7 @@ export default function KssAuditTrail({ drawingId, onClose }: Props) {
               <button
                 onClick={() => setMode('dev')}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  mode === 'dev' ? 'bg-sky-600 text-white' : 'text-gray-400 hover:text-white'
+                  mode === 'dev' ? 'bg-[color:var(--oe-accent)] text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 DEV
@@ -385,7 +385,7 @@ function DevModeView({
               className="w-full flex items-center justify-between p-3 hover:bg-gray-800 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span className="text-sky-300 font-mono text-xs">P{phase.num}</span>
+                <span className="text-[color:var(--oe-accent)] font-mono text-xs">P{phase.num}</span>
                 <span className="text-white text-sm font-medium">{phase.title}</span>
               </div>
               <span className="text-gray-500 text-xs">{isExpanded ? '[-]' : '[+]'}</span>
@@ -404,7 +404,7 @@ function DevModeView({
       {/* Timings */}
       {Array.isArray(data.timings) && (
         <div className="border border-gray-700 rounded-lg p-3">
-          <h3 className="text-sky-300 font-mono text-xs mb-2">TIMINGS</h3>
+          <h3 className="text-[color:var(--oe-accent)] font-mono text-xs mb-2">TIMINGS</h3>
           <div className="flex flex-wrap gap-3">
             {(data.timings as Array<{phase: string; duration_ms: number}>).map((t, i) => (
               <span key={i} className="text-xs text-gray-400">

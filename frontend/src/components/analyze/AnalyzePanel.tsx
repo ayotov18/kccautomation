@@ -74,8 +74,8 @@ export function AnalyzePanel({ drawingId }: Props) {
         onClick={() => setOpen(!open)}
         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           open
-            ? 'bg-sky-500 text-gray-900'
-            : 'bg-sky-500/90 text-gray-900 hover:bg-sky-400'
+            ? 'bg-[color:var(--oe-accent)] text-gray-900'
+            : 'bg-[color:var(--oe-accent)]/90 text-gray-900 hover:bg-[color:var(--oe-accent-hot)]'
         }`}
         title="Deep Analyze — extract all data from DWG"
       >
@@ -95,7 +95,7 @@ export function AnalyzePanel({ drawingId }: Props) {
             <button
               onClick={handleAnalyze}
               disabled={!drawingId}
-              className="w-full px-3 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
+              className="w-full px-3 py-2 bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium transition-colors"
             >
               Run Deep Analysis
             </button>
@@ -104,12 +104,12 @@ export function AnalyzePanel({ drawingId }: Props) {
           {running && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-[color:var(--oe-accent)] animate-pulse" />
                 <span className="text-xs text-gray-400">Analyzing...</span>
               </div>
               <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="h-full bg-sky-500 rounded-full transition-all duration-500"
+                  className="h-full bg-[color:var(--oe-accent)] rounded-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -118,7 +118,7 @@ export function AnalyzePanel({ drawingId }: Props) {
 
           {done && (
             <div className="space-y-2">
-              <div className="text-xs text-sky-300 flex items-center gap-1">
+              <div className="text-xs text-[color:var(--oe-accent)] flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -126,7 +126,7 @@ export function AnalyzePanel({ drawingId }: Props) {
               </div>
               <button
                 onClick={handleDownload}
-                className="w-full px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded text-sm text-white transition-colors"
+                className="w-full px-3 py-1.5 bg-[color:var(--oe-accent)] hover:bg-[color:var(--oe-accent-hot)] rounded text-sm text-white transition-colors"
               >
                 Download JSON
               </button>

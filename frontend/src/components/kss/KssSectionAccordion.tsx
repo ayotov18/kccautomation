@@ -62,7 +62,7 @@ export function KssSectionAccordion({
             isOpen && 'rotate-90',
           )}
         />
-        <span className="flex-none w-10 text-right font-mono text-[11px] tracking-wide text-sky-300/80 uppercase">
+        <span className="flex-none w-10 text-right font-mono text-[11px] tracking-wide text-[color:var(--oe-accent)]/80 uppercase">
           {number}
         </span>
         <span className="flex-1 min-w-0 text-sm font-medium text-content-primary truncate">
