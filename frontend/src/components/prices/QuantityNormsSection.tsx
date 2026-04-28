@@ -40,10 +40,14 @@ export function QuantityNormsSection() {
   return (
     <section className="oe-card p-5 space-y-4">
       <div>
-        <h2 className="text-base font-medium text-content-primary">Quantity norms</h2>
+        <h2 className="text-base font-medium text-content-primary">
+          Quantity norms <span className="oe-badge ml-2" data-variant="info">reference</span>
+        </h2>
         <p className="mt-1 text-[12.5px] text-content-tertiary">
-          Нормативи за разход на труд и материали на единица работа. Подавани на AI
-          като anchor, за да не &bdquo;халюцинира&ldquo; количества.
+          Public Bulgarian construction norms (УСН / Ytong / Wienerberger / etc.) used as{' '}
+          <em>anchors</em> so the AI can&rsquo;t hallucinate quantities. <strong>This is not
+          your offer data</strong> — your imported XLSX rows live in the{' '}
+          <span className="text-content-secondary">Library</span> tab.
         </p>
       </div>
 
@@ -169,7 +173,7 @@ function NormsTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Търси по описание или СЕК код…"
-            className="flex-1 min-w-64 px-3 py-2 bg-surface-tertiary border border-border-light rounded-lg text-sm focus:outline-none focus:border-sky-400"
+            className="flex-1 min-w-64 px-3 py-2 bg-surface-tertiary border border-border-light rounded-lg text-sm focus:outline-none focus:border-[color:var(--oe-accent)]"
           />
           <Select
             size="sm"
@@ -189,7 +193,7 @@ function NormsTab() {
             ]}
           />
           <label className="flex items-center gap-2 text-sm text-content-secondary">
-            <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="accent-sky-400" />
+            <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="accent-[color:var(--oe-accent)]" />
             Само мои
           </label>
           <div className="ml-auto flex gap-2">
@@ -208,7 +212,7 @@ function NormsTab() {
         {scraping && (
           <div className="mt-3">
             <div className="w-full bg-surface-tertiary/60 rounded-full h-1.5">
-              <div className="bg-sky-400 h-1.5 rounded-full transition-all" style={{ width: `${scrapeProgress}%` }} />
+              <div className="bg-[color:var(--oe-accent)] h-1.5 rounded-full transition-all" style={{ width: `${scrapeProgress}%` }} />
             </div>
           </div>
         )}
@@ -244,9 +248,9 @@ function NormsTab() {
                     <tr
                       key={n.id}
                       onClick={() => setSelected(n)}
-                      className="border-t border-border-light/30 hover:bg-sky-50/30 dark:hover:bg-sky-500/5 cursor-pointer transition-colors"
+                      className="border-t border-border-light/30 hover:bg-[color:var(--oe-accent-soft-bg)] dark:hover:bg-[color:var(--oe-accent-soft-bg)] cursor-pointer transition-colors"
                     >
-                      <td className="px-4 py-2 font-mono text-xs text-sky-500 dark:text-sky-300">{n.sek_code}</td>
+                      <td className="px-4 py-2 font-mono text-xs text-[color:var(--oe-accent)] dark:text-[color:var(--oe-accent)]">{n.sek_code}</td>
                       <td className="px-4 py-2 max-w-md truncate">{n.description_bg}</td>
                       <td className="px-4 py-2 text-content-secondary">{n.work_unit}</td>
                       <td className="px-4 py-2 text-right font-mono text-xs">{totalH.toFixed(2)}</td>
@@ -260,7 +264,7 @@ function NormsTab() {
                       </td>
                       <td className="px-4 py-2 text-xs">
                         {n.user_id ? (
-                          <span className="bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300 px-2 py-0.5 rounded-full">мой</span>
+                          <span className="bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] dark:bg-[color:var(--oe-accent-soft-bg)] dark:text-[color:var(--oe-accent)] px-2 py-0.5 rounded-full">мой</span>
                         ) : (
                           <span className="text-content-tertiary">{n.source}</span>
                         )}
@@ -307,7 +311,7 @@ function NormsTab() {
 
 function ConfidenceDot({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(1, value || 0));
-  const color = pct >= 0.85 ? 'bg-emerald-400' : pct >= 0.65 ? 'bg-sky-400' : 'bg-amber-400';
+  const color = pct >= 0.85 ? 'bg-[color:var(--oe-success)]' : pct >= 0.65 ? 'bg-[color:var(--oe-accent)]' : 'bg-[color:var(--oe-warning)]';
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-content-tertiary">
       <span className={`w-2 h-2 rounded-full ${color}`} />
@@ -482,7 +486,7 @@ function NormDrawer({
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium">Материали на единица</h3>
-              <button onClick={addMaterial} className="text-xs text-sky-500 hover:text-sky-400">+ Добави</button>
+              <button onClick={addMaterial} className="text-xs text-[color:var(--oe-accent)] hover:text-[color:var(--oe-accent-hot)]">+ Добави</button>
             </div>
             <div className="space-y-2">
               {materials.length === 0 && <p className="text-xs text-content-tertiary">Няма добавени материали.</p>}
@@ -500,7 +504,7 @@ function NormDrawer({
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium">Машини / оборудване</h3>
-              <button onClick={addMachine} className="text-xs text-sky-500 hover:text-sky-400">+ Добави</button>
+              <button onClick={addMachine} className="text-xs text-[color:var(--oe-accent)] hover:text-[color:var(--oe-accent-hot)]">+ Добави</button>
             </div>
             <div className="space-y-2">
               {machinery.length === 0 && <p className="text-xs text-content-tertiary">Няма добавени машини.</p>}
@@ -637,11 +641,11 @@ function ImportCsvDialog({ onClose, onImported }: { onClose: () => void; onImpor
         <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-sm" />
         <div className="flex items-center gap-4 text-sm">
           <label className="flex items-center gap-2">
-            <input type="radio" name="dup" checked={onDup === 'skip'} onChange={() => setOnDup('skip')} className="accent-sky-400" />
+            <input type="radio" name="dup" checked={onDup === 'skip'} onChange={() => setOnDup('skip')} className="accent-[color:var(--oe-accent)]" />
             Пропусни дубликати
           </label>
           <label className="flex items-center gap-2">
-            <input type="radio" name="dup" checked={onDup === 'replace'} onChange={() => setOnDup('replace')} className="accent-sky-400" />
+            <input type="radio" name="dup" checked={onDup === 'replace'} onChange={() => setOnDup('replace')} className="accent-[color:var(--oe-accent)]" />
             Замести дубликати
           </label>
         </div>
@@ -710,7 +714,7 @@ function DistributionsTab() {
               onClick={() => setActiveType(bt.key)}
               className={`px-3 py-1.5 text-sm rounded-full transition-all ${
                 activeType === bt.key
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-400/30'
+                  ? 'bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] border border-[color:var(--oe-accent)]/30'
                   : 'bg-surface-tertiary/40 text-content-secondary hover:text-content-primary border border-transparent'
               }`}
             >
@@ -756,17 +760,17 @@ function DistributionCard({ dist, onClick }: { dist: ProjectDistribution; onClic
   return (
     <button
       onClick={onClick}
-      className="oe-card p-4 text-left hover:border-sky-400/40 transition-colors"
+      className="oe-card p-4 text-left hover:border-[color:var(--oe-accent)]/40 transition-colors"
     >
       <div className="text-xs text-content-tertiary font-mono mb-1">{dist.metric_key}</div>
       <div className="text-sm font-medium text-content-primary mb-3">{dist.metric_label_bg}</div>
-      <div className="text-2xl font-semibold text-sky-500 dark:text-sky-300">
+      <div className="text-2xl font-semibold text-[color:var(--oe-accent)] dark:text-[color:var(--oe-accent)]">
         {dist.median_value.toLocaleString('bg-BG', { maximumFractionDigits: 2 })}
         <span className="text-xs text-content-tertiary font-normal ml-1">{dist.unit}</span>
       </div>
       <div className="mt-3 h-1.5 bg-surface-tertiary/60 rounded-full relative">
-        <div className="absolute inset-y-0 left-0 bg-sky-400/30 rounded-full" style={{ width: '100%' }} />
-        <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-sky-400 rounded-full shadow" style={{ left: `calc(${pctMid}% - 5px)` }} />
+        <div className="absolute inset-y-0 left-0 bg-[color:var(--oe-accent)]/30 rounded-full" style={{ width: '100%' }} />
+        <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[color:var(--oe-accent)] rounded-full shadow" style={{ left: `calc(${pctMid}% - 5px)` }} />
       </div>
       <div className="flex justify-between mt-1.5 text-[10px] text-content-tertiary font-mono">
         <span>{min.toFixed(2)}</span>
@@ -917,11 +921,11 @@ function SourcesTab() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{s.site_name}</span>
-                    {s.is_builtin && <span className="text-[10px] uppercase tracking-wide bg-sky-500/15 text-sky-600 dark:text-sky-300 px-1.5 py-0.5 rounded">built-in</span>}
+                    {s.is_builtin && <span className="text-[10px] uppercase tracking-wide bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] px-1.5 py-0.5 rounded">built-in</span>}
                     {!s.enabled && <span className="text-[10px] uppercase tracking-wide bg-amber-500/15 text-amber-600 dark:text-amber-300 px-1.5 py-0.5 rounded">off</span>}
                   </div>
                   <p className="text-xs text-content-tertiary mt-0.5 truncate">
-                    <a href={s.base_url} target="_blank" rel="noreferrer" className="hover:text-sky-400">{s.base_url}</a>
+                    <a href={s.base_url} target="_blank" rel="noreferrer" className="hover:text-[color:var(--oe-accent-hot)]">{s.base_url}</a>
                   </p>
                   {s.description && <p className="text-xs text-content-secondary mt-0.5 truncate">{s.description}</p>}
                 </div>
@@ -983,7 +987,7 @@ function HistoryTab() {
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                   r.status === 'done' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300' :
                   r.status === 'failed' ? 'bg-red-500/15 text-red-600 dark:text-red-300' :
-                  'bg-sky-500/15 text-sky-600 dark:text-sky-300'
+                  'bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)]'
                 }`}>{r.status}</span>
               </td>
               <td className="px-4 py-2 text-right font-mono text-xs">{r.successful_sources}/{r.total_sources}</td>
