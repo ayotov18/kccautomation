@@ -20,12 +20,24 @@ export default function AiKssPrepare() {
   const [mode, setMode] = useState<'ai' | 'rag' | 'hybrid'>('ai');
   /** Corpus row count — drives RAG availability messaging. */
   const [corpusSize, setCorpusSize] = useState<number | null>(null);
+  /** Offers (XLSX imports) pinned to THIS drawing — drives the
+   *  "1:1 emission" banner and the auto-default to rag mode. */
+  const [linkedOffers, setLinkedOffers] = useState<Array<{ id: string; filename: string; row_count: number; sheet_count: number }>>([]);
 
   useEffect(() => {
     api.listCorpusImports()
-      .then(d => setCorpusSize(d.total_corpus_rows))
+      .then((d) => {
+        setCorpusSize(d.total_corpus_rows);
+        const linked = d.imports.filter((imp) => imp.drawing_id === drawingId);
+        setLinkedOffers(linked);
+        // When an offer is pinned to this drawing, default to RAG so we
+        // emit the offer 1:1 instead of letting the AI rebuild prices
+        // from scratch (which is what produced the €212k vs human €100k
+        // discrepancy on TASOS).
+        if (linked.length > 0) setMode('rag');
+      })
       .catch(() => setCorpusSize(0));
-  }, []);
+  }, [drawingId]);
 
   // Poll status during research phase
   useEffect(() => {
@@ -171,6 +183,33 @@ export default function AiKssPrepare() {
             </button>
           </div>
         </div>
+
+        {linkedOffers.length > 0 && (
+          <section
+            className="oe-card p-4 flex items-start gap-3"
+            style={{
+              background: 'var(--oe-accent-soft-bg)',
+              borderColor: 'color-mix(in oklch, var(--oe-accent) 30%, transparent)',
+            }}
+          >
+            <span
+              className="flex-none w-8 h-8 rounded-full flex items-center justify-center mt-0.5"
+              style={{ background: 'var(--oe-accent-soft-bg)', color: 'var(--oe-accent)' }}
+            >
+              ✓
+            </span>
+            <div className="text-sm">
+              <div className="font-medium text-content-primary">
+                Linked offer detected — emitting 1:1
+              </div>
+              <p className="text-[12.5px] text-content-secondary mt-1">
+                {linkedOffers.length === 1
+                  ? `“${linkedOffers[0].filename}” (${linkedOffers[0].row_count} priced rows, ${linkedOffers[0].sheet_count} sheets) is pinned to this drawing. We&rsquo;ll skip AI price research and emit the offer line-for-line. Only VAT is applied on top — no contingency, delivery, or profit markup.`
+                  : `${linkedOffers.length} offers pinned: ${linkedOffers.map((l) => l.filename).join(', ')}. We&rsquo;ll emit them 1:1 across detected modules.`}
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* Mode chooser. RAG-only is greyed out when the user has no corpus. */}
         <ModeChooser
