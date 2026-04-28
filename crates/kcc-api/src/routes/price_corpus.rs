@@ -353,7 +353,6 @@ struct CorpusRow {
     material_price_eur: Option<f64>,
     labor_price_eur: Option<f64>,
     total_unit_price_eur: Option<f64>,
-    currency: String,
     source_sheet: Option<String>,
     source_row: Option<i32>,
     import_id: Option<Uuid>,
@@ -378,7 +377,6 @@ async fn list_corpus(
         Option<f64>,
         Option<f64>,
         Option<f64>,
-        String,
         Option<String>,
         Option<i32>,
         Option<Uuid>,
@@ -386,7 +384,7 @@ async fn list_corpus(
     )>(
         "SELECT id, sek_code, description, unit, quantity,
                 material_price_eur, labor_price_eur, total_unit_price_eur,
-                currency, source_sheet, source_row, import_id, created_at
+                source_sheet, source_row, import_id, created_at
          FROM user_price_corpus
          WHERE user_id = $1
            AND ($2::text IS NULL OR description ILIKE $2)
@@ -412,11 +410,10 @@ async fn list_corpus(
         material_price_eur: r.5,
         labor_price_eur: r.6,
         total_unit_price_eur: r.7,
-        currency: r.8,
-        source_sheet: r.9,
-        source_row: r.10,
-        import_id: r.11,
-        created_at: r.12,
+        source_sheet: r.8,
+        source_row: r.9,
+        import_id: r.10,
+        created_at: r.11,
     })
     .collect();
 
@@ -663,8 +660,8 @@ async fn create_corpus_row(
     let id: Uuid = sqlx::query_scalar(
         "INSERT INTO user_price_corpus (
             user_id, import_id, sek_code, description, unit, quantity,
-            material_price_eur, labor_price_eur, total_unit_price_eur, currency
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'EUR')
+            material_price_eur, labor_price_eur, total_unit_price_eur
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id",
     )
     .bind(user_id)

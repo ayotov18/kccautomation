@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 function AuthGate() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') ?? '/drawings';
+  const redirectTo = searchParams.get('redirect') ?? '/dashboard';
   const { login, register } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUp,
   FileText,
@@ -16,8 +16,6 @@ import {
   FolderArchive,
   Search,
   Settings,
-  Sparkles,
-  Upload,
   X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -33,15 +31,6 @@ interface Route {
   path: string;
   group: Group;
   icon: React.ReactNode;
-  keywords: string[];
-}
-
-interface ActionCmd {
-  id: string;
-  label: string;
-  labelBg: string;
-  icon: React.ReactNode;
-  run: () => void;
   keywords: string[];
 }
 
@@ -80,6 +69,7 @@ function fuzzyScore(query: string, target: string): number {
 
 export function FloatingCommandBar() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -130,31 +120,6 @@ export function FloatingCommandBar() {
     api.listDrawings().then((d) => setRecent(d.slice(0, 5))).catch(() => {});
   }, [focused, recent.length]);
 
-  const actions: ActionCmd[] = useMemo(
-    () => [
-      {
-        id: 'upload',
-        label: 'Upload drawing',
-        labelBg: 'Качи чертеж',
-        icon: <Upload size={14} />,
-        keywords: ['upload', 'качи', 'нов'],
-        run: () => router.push('/files?upload=drawing'),
-      },
-      {
-        id: 'ask-ai',
-        label: 'Ask with AI',
-        labelBg: 'Попитай AI',
-        icon: <Sparkles size={14} />,
-        keywords: ['ai', 'ask', 'помощ'],
-        run: () => {
-          // Phase 2: send query to AI. For now navigate to kss if any.
-          console.info('[command] AI query:', query);
-        },
-      },
-    ],
-    [router, query],
-  );
-
   const q = query.trim();
   const matchedRoutes = useMemo(() => {
     const pool = filter ? ROUTES.filter((r) => r.group === filter) : ROUTES;
@@ -173,21 +138,6 @@ export function FloatingCommandBar() {
       .map((x) => x.r);
   }, [q, filter]);
 
-  const matchedActions = useMemo(() => {
-    if (!q) return actions;
-    return actions
-      .map((a) => ({
-        a,
-        score: Math.max(
-          fuzzyScore(q, a.labelBg),
-          fuzzyScore(q, a.label),
-          ...a.keywords.map((k) => fuzzyScore(q, k)),
-        ),
-      }))
-      .filter((x) => x.score > 0)
-      .map((x) => x.a);
-  }, [q, actions]);
-
   const matchedDrawings = useMemo(() => {
     if (!q) return recent;
     return recent
@@ -200,18 +150,30 @@ export function FloatingCommandBar() {
   const flatResults = useMemo(
     () => [
       ...matchedRoutes.map((r) => ({ kind: 'route' as const, data: r })),
-      ...matchedActions.map((a) => ({ kind: 'action' as const, data: a })),
       ...matchedDrawings.map((d) => ({ kind: 'drawing' as const, data: d })),
     ],
-    [matchedRoutes, matchedActions, matchedDrawings],
+    [matchedRoutes, matchedDrawings],
   );
 
-  useEffect(() => setActiveIdx(0), [query, filter]);
+  // Default the highlighted row to whichever route matches the current page.
+  // Falls back to 0 once the user starts typing or filtering.
+  const currentRouteIdx = useMemo(() => {
+    if (q || filter) return 0;
+    const idx = flatResults.findIndex((x) => {
+      if (x.kind !== 'route') return false;
+      if (x.data.path === '/dashboard') {
+        return pathname === '/dashboard' || pathname === '/';
+      }
+      return pathname === x.data.path || pathname.startsWith(x.data.path + '/');
+    });
+    return idx >= 0 ? idx : 0;
+  }, [pathname, q, filter, flatResults]);
+
+  useEffect(() => setActiveIdx(currentRouteIdx), [currentRouteIdx]);
 
   const activate = useCallback(
     (item: (typeof flatResults)[number]) => {
       if (item.kind === 'route') router.push(item.data.path);
-      else if (item.kind === 'action') item.data.run();
       else if (item.kind === 'drawing') router.push(`/drawings/${item.data.id}`);
       setQuery('');
       inputRef.current?.blur();
@@ -258,23 +220,6 @@ export function FloatingCommandBar() {
                   icon={r.icon}
                   label={r.labelBg}
                   meta={r.path}
-                />
-              );
-            })}
-
-            {matchedActions.length > 0 && (
-              <GroupLabel label="Действия" />
-            )}
-            {matchedActions.map((a) => {
-              const flatIdx = flatResults.findIndex((x) => x.kind === 'action' && x.data.id === a.id);
-              return (
-                <ResultRow
-                  key={`a-${a.id}`}
-                  active={activeIdx === flatIdx}
-                  onClick={() => activate({ kind: 'action', data: a })}
-                  icon={a.icon}
-                  label={a.labelBg}
-                  meta={a.label}
                 />
               );
             })}
