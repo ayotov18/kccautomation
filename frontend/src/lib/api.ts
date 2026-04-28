@@ -586,6 +586,21 @@ class ApiClient {
     return this.request(`/price-corpus/${rowId}`, { method: 'DELETE' });
   }
 
+  async createCorpusRow(row: {
+    description: string;
+    unit: string;
+    quantity?: number;
+    material_price_eur?: number;
+    labor_price_eur?: number;
+    sek_code?: string;
+    import_id?: string;
+  }): Promise<{ id: string }> {
+    return this.request(`/price-corpus`, {
+      method: 'POST',
+      body: JSON.stringify(row),
+    });
+  }
+
   async listCorpusImports(): Promise<{
     imports: Array<{
       id: string;
@@ -602,7 +617,12 @@ class ApiClient {
     return this.request(`/price-corpus/imports`);
   }
 
-  async listCorpus(opts?: { q?: string; limit?: number; offset?: number }): Promise<{
+  async listCorpus(opts?: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+    import_id?: string;
+  }): Promise<{
     rows: Array<{
       id: string; sek_code: string | null; description: string; unit: string;
       quantity: number | null; material_price_eur: number | null;
@@ -616,6 +636,7 @@ class ApiClient {
     if (opts?.q) qs.set('q', opts.q);
     if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
     if (opts?.offset !== undefined) qs.set('offset', String(opts.offset));
+    if (opts?.import_id) qs.set('import_id', opts.import_id);
     const q = qs.toString();
     return this.request(`/price-corpus${q ? `?${q}` : ''}`);
   }

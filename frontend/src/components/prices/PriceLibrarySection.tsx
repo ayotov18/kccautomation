@@ -1,17 +1,19 @@
 'use client';
 
 /**
- * Self-hosted RAG price library.
+ * Self-hosted RAG price library — the single place to view and edit your prices.
  *
- * Lives inside the unified `/prices` page. Three responsibilities:
- *   1. Upload XLSX offers (user's prior KSS reports) into the corpus.
- *   2. Pin each upload to a specific drawing so RAG retrieves 1:1 against
- *      that offer when the drawing's KSS is generated.
- *   3. Surface duplicate-detection feedback (file-hash silent skip, content
- *      overlap >= 50% → conflict modal with three options).
+ * Layout (top → bottom):
+ *   1. Header summary + Upload + Add row CTAs
+ *   2. Imports list (file ↔ drawing pinning, delete an offer)
+ *   3. Filter row (search, scope-by-import, page size)
+ *   4. Always-visible price table (inline edit, delete, pagination)
+ *   5. Conflict modal (duplicate XLSX detection)
+ *   6. Add-row modal
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Plus, Upload, RefreshCw, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Drawing } from '@/types';
 
@@ -38,6 +40,7 @@ interface CorpusRow {
   currency: string;
   source_sheet: string | null;
   source_row: number | null;
+  import_id: string | null;
 }
 
 interface ConflictInfo {
@@ -55,45 +58,74 @@ interface ConflictInfo {
   pendingDrawingId: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 export function PriceLibrarySection() {
   const [imports, setImports] = useState<CorpusImport[]>([]);
-  const [totalRows, setTotalRows] = useState(0);
+  const [totalCorpusRows, setTotalCorpusRows] = useState(0);
   const [rows, setRows] = useState<CorpusRow[]>([]);
+  const [totalRowsForFilter, setTotalRowsForFilter] = useState(0);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [search, setSearch] = useState('');
-  const [showBrowser, setShowBrowser] = useState(false);
+  const [scopeImportId, setScopeImportId] = useState<string>(''); // '' = all
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [linkDrawingId, setLinkDrawingId] = useState<string>('');
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const fetchImports = useCallback(async () => {
     try {
       const data = await api.listCorpusImports();
       setImports(data.imports);
-      setTotalRows(data.total_corpus_rows);
+      setTotalCorpusRows(data.total_corpus_rows);
     } catch {
       /* swallow */
     }
   }, []);
 
-  const fetchRows = useCallback(async (q: string) => {
-    try {
-      const data = await api.listCorpus({ q: q || undefined, limit: 100, offset: 0 });
-      setRows(data.rows);
-    } catch {
-      setRows([]);
-    }
-  }, []);
+  const fetchRows = useCallback(
+    async (q: string, importId: string, pageIdx: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await api.listCorpus({
+          q: q || undefined,
+          import_id: importId || undefined,
+          limit: PAGE_SIZE,
+          offset: pageIdx * PAGE_SIZE,
+        });
+        setRows(data.rows);
+        setTotalRowsForFilter(data.total);
+      } catch (e) {
+        setRows([]);
+        setTotalRowsForFilter(0);
+        setError(e instanceof Error ? e.message : 'Failed to load prices');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     fetchImports();
     api.listDrawings().then(setDrawings).catch(() => setDrawings([]));
   }, [fetchImports]);
 
+  // Debounced refetch on filter change.
   useEffect(() => {
-    if (showBrowser) fetchRows(search);
-  }, [showBrowser, search, fetchRows]);
+    const t = setTimeout(() => fetchRows(search, scopeImportId, page), 200);
+    return () => clearTimeout(t);
+  }, [search, scopeImportId, page, fetchRows]);
+
+  // Reset to page 0 when filters change.
+  useEffect(() => {
+    setPage(0);
+  }, [search, scopeImportId]);
 
   const performUpload = async (
     file: File,
@@ -115,11 +147,12 @@ export function PriceLibrarySection() {
         return;
       }
       if (result.deduped) {
-        setUploadMsg(
-          `Already imported — ${result.row_count} rows reused${
+        setUploadMsg({
+          tone: 'ok',
+          text: `Already imported — ${result.row_count} rows reused${
             result.drawing_id ? ' (link updated)' : ''
           }.`,
-        );
+        });
       } else {
         const overlapNote =
           result.overlap_warnings && result.overlap_warnings.length > 0
@@ -127,17 +160,20 @@ export function PriceLibrarySection() {
                 result.overlap_warnings.length === 1 ? '' : 's'
               } detected — kept anyway.`
             : '';
-        setUploadMsg(
-          `Imported ${result.row_count} rows from ${result.sheet_count} sheet${
+        setUploadMsg({
+          tone: 'ok',
+          text: `Imported ${result.row_count} rows from ${result.sheet_count} sheet${
             result.sheet_count === 1 ? '' : 's'
           }${result.skipped_count > 0 ? `, ${result.skipped_count} skipped` : ''}.${overlapNote}`,
-        );
+        });
       }
       await fetchImports();
-      if (showBrowser) await fetchRows(search);
+      await fetchRows(search, scopeImportId, page);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Upload failed';
-      setUploadMsg(`Failed: ${msg}`);
+      setUploadMsg({
+        tone: 'err',
+        text: `Failed: ${err instanceof Error ? err.message : 'Upload failed'}`,
+      });
     }
     setUploading(false);
     setConflict(null);
@@ -151,33 +187,24 @@ export function PriceLibrarySection() {
     if (!conflict) return;
     if (action === 'skip') {
       setConflict(null);
-      setUploadMsg('Upload cancelled — using the existing import.');
+      setUploadMsg({ tone: 'ok', text: 'Upload cancelled — using the existing import.' });
       return;
     }
     void performUpload(conflict.pendingFile, conflict.pendingDrawingId, action);
   };
 
-  const handleDelete = async (importId: string, filename: string) => {
+  const handleDeleteImport = async (importId: string, filename: string) => {
     if (!confirm(`Delete import "${filename}" and all its corpus rows?`)) return;
-    try {
-      await api.deleteCorpusImport(importId);
-      await fetchImports();
-      if (showBrowser) await fetchRows(search);
-    } catch {
-      /* swallow */
-    }
+    await api.deleteCorpusImport(importId).catch(() => {});
+    await fetchImports();
+    await fetchRows(search, scopeImportId, page);
   };
 
   const handleRelink = async (importId: string, drawingId: string) => {
-    try {
-      await api.setImportLink(importId, drawingId || null);
-      await fetchImports();
-    } catch {
-      /* swallow */
-    }
+    await api.setImportLink(importId, drawingId || null).catch(() => {});
+    await fetchImports();
   };
 
-  // Inline edit handlers (debounced auto-save per cell on blur).
   const handleEdit = async (
     rowId: string,
     field:
@@ -197,12 +224,8 @@ export function PriceLibrarySection() {
               [field]: value,
               total_unit_price_eur:
                 field === 'material_price_eur' || field === 'labor_price_eur'
-                  ? (field === 'material_price_eur'
-                      ? Number(value)
-                      : r.material_price_eur ?? 0) +
-                    (field === 'labor_price_eur'
-                      ? Number(value)
-                      : r.labor_price_eur ?? 0)
+                  ? (field === 'material_price_eur' ? Number(value) : r.material_price_eur ?? 0) +
+                    (field === 'labor_price_eur' ? Number(value) : r.labor_price_eur ?? 0)
                   : r.total_unit_price_eur,
             }
           : r,
@@ -210,9 +233,9 @@ export function PriceLibrarySection() {
     );
     try {
       await api.updateCorpusRow(rowId, { [field]: value });
-      await fetchImports(); // row counts may not change but keep summary fresh
     } catch {
-      /* swallow — UI already optimistic */
+      // Refetch to reset state if the server rejected.
+      await fetchRows(search, scopeImportId, page);
     }
   };
 
@@ -221,50 +244,101 @@ export function PriceLibrarySection() {
     try {
       await api.deleteCorpusRow(rowId);
       setRows((prev) => prev.filter((r) => r.id !== rowId));
+      setTotalRowsForFilter((t) => Math.max(0, t - 1));
       await fetchImports();
     } catch {
       /* swallow */
     }
   };
 
+  const handleAddRow = async (input: {
+    description: string;
+    unit: string;
+    quantity: string;
+    material_price_eur: string;
+    labor_price_eur: string;
+    sek_code: string;
+    import_id: string;
+  }) => {
+    try {
+      await api.createCorpusRow({
+        description: input.description.trim(),
+        unit: input.unit.trim(),
+        quantity: input.quantity ? parseFloat(input.quantity) : undefined,
+        material_price_eur: input.material_price_eur
+          ? parseFloat(input.material_price_eur)
+          : undefined,
+        labor_price_eur: input.labor_price_eur
+          ? parseFloat(input.labor_price_eur)
+          : undefined,
+        sek_code: input.sek_code.trim() || undefined,
+        import_id: input.import_id || undefined,
+      });
+      setAddOpen(false);
+      await fetchImports();
+      await fetchRows(search, scopeImportId, 0);
+      setPage(0);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to add row');
+    }
+  };
+
+  const drawingMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of drawings) m.set(d.id, d.filename);
+    return m;
+  }, [drawings]);
+
+  const importMap = useMemo(() => {
+    const m = new Map<string, CorpusImport>();
+    for (const imp of imports) m.set(imp.id, imp);
+    return m;
+  }, [imports]);
+
+  const totalPages = Math.max(1, Math.ceil(totalRowsForFilter / PAGE_SIZE));
+  const fromIdx = totalRowsForFilter === 0 ? 0 : page * PAGE_SIZE + 1;
+  const toIdx = Math.min(totalRowsForFilter, (page + 1) * PAGE_SIZE);
+
   return (
-    <section className="oe-card p-5 space-y-4">
-      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+    <section className="oe-card p-5 space-y-5">
+      {/* Header summary */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-base font-medium text-content-primary">My price library</h2>
           <p className="mt-1 text-[12.5px] text-content-tertiary">
-            <span className="font-numeric text-content-secondary">{totalRows}</span> priced
-            rows from <span className="font-numeric">{imports.length}</span> uploaded
-            {imports.length === 1 ? ' offer' : ' offers'}. Link each XLSX to a drawing
-            for 1:1 RAG generation. Click any cell in the browser to edit.
+            <span className="font-numeric text-content-secondary">{totalCorpusRows}</span> priced
+            rows from <span className="font-numeric">{imports.length}</span>{' '}
+            {imports.length === 1 ? 'offer' : 'offers'}. Click any cell to edit, link offers
+            to drawings for 1:1 RAG.
           </p>
         </div>
-        <button
-          onClick={() => setShowBrowser((v) => !v)}
-          className="oe-btn-ghost oe-btn-sm"
-        >
-          {showBrowser ? 'Hide' : 'Browse & edit'} prices
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="oe-btn-secondary oe-btn-sm"
+          >
+            <Plus size={13} /> Add row
+          </button>
+          <label className="oe-btn-primary oe-btn-sm cursor-pointer">
+            <Upload size={13} /> {uploading ? 'Uploading…' : 'Upload XLSX'}
+            <input
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
       </div>
 
-      {/* Upload row */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <label htmlFor="corpus-upload" className="oe-btn-primary cursor-pointer">
-          {uploading ? 'Uploading…' : 'Upload XLSX offer'}
-          <input
-            id="corpus-upload"
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="hidden"
-            disabled={uploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFile(f);
-              e.target.value = '';
-            }}
-          />
-        </label>
-        <span className="text-xs text-content-tertiary">Link to drawing</span>
+      {/* Upload-target drawing picker */}
+      <div className="flex items-center gap-3 flex-wrap text-[11.5px] text-content-tertiary">
+        <span>Next upload links to:</span>
         <select
           value={linkDrawingId}
           onChange={(e) => setLinkDrawingId(e.target.value)}
@@ -281,41 +355,42 @@ export function PriceLibrarySection() {
 
       {uploadMsg && (
         <div
-          className={`text-xs px-3 py-2 rounded-lg ${
-            uploadMsg.startsWith('Failed')
-              ? 'bg-red-900/30 text-red-300'
-              : 'bg-emerald-900/30 text-emerald-300'
-          }`}
+          className="text-xs px-3 py-2 rounded-lg"
+          style={{
+            background:
+              uploadMsg.tone === 'err' ? 'var(--oe-error-bg)' : 'var(--oe-success-bg)',
+            color: uploadMsg.tone === 'err' ? 'var(--oe-error)' : 'var(--oe-success)',
+          }}
         >
-          {uploadMsg}
+          {uploadMsg.text}
         </div>
       )}
 
       {/* Imports list */}
       {imports.length > 0 && (
-        <div className="rounded-lg border border-border-light/50 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-left text-content-tertiary text-[10px] uppercase tracking-wider bg-surface-secondary/40">
+        <div className="rounded-lg border border-border-light/60 overflow-hidden">
+          <table className="oe-table">
+            <thead>
               <tr>
-                <th className="px-3 py-2">File</th>
-                <th className="px-3 py-2 w-44">Linked drawing</th>
-                <th className="px-3 py-2 w-16 text-right">Sheets</th>
-                <th className="px-3 py-2 w-16 text-right">Rows</th>
-                <th className="px-3 py-2 w-24">Imported</th>
-                <th className="px-3 py-2 w-12"></th>
+                <th>File</th>
+                <th className="w-44">Linked drawing</th>
+                <th className="w-16 !text-right">Sheets</th>
+                <th className="w-16 !text-right">Rows</th>
+                <th className="w-24">Imported</th>
+                <th className="w-12"></th>
               </tr>
             </thead>
             <tbody>
               {imports.map((imp) => (
-                <tr key={imp.id} className="border-t border-border-light/30">
-                  <td className="px-3 py-2 truncate max-w-xs" title={imp.filename}>
+                <tr key={imp.id}>
+                  <td className="truncate max-w-xs" title={imp.filename}>
                     {imp.filename}
                   </td>
-                  <td className="px-3 py-2">
+                  <td>
                     <select
                       value={imp.drawing_id ?? ''}
                       onChange={(e) => handleRelink(imp.id, e.target.value)}
-                      className="w-full bg-transparent border border-border-light/40 rounded-full px-2 py-1 text-[12px] text-content-secondary outline-none hover:border-border-light"
+                      className="w-full bg-transparent border border-border-light/50 rounded-full px-2 py-1 text-[12px] text-content-secondary outline-none hover:border-border-light"
                     >
                       <option value="">— None</option>
                       {drawings.map((d) => (
@@ -325,19 +400,16 @@ export function PriceLibrarySection() {
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-2 text-right font-numeric text-xs">
-                    {imp.sheet_count}
-                  </td>
-                  <td className="px-3 py-2 text-right font-numeric text-xs">
-                    {imp.row_count}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-content-tertiary">
+                  <td className="oe-num">{imp.sheet_count}</td>
+                  <td className="oe-num">{imp.row_count}</td>
+                  <td className="text-xs text-content-tertiary">
                     {new Date(imp.imported_at).toLocaleDateString('en-GB')}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="!text-right">
                     <button
-                      onClick={() => handleDelete(imp.id, imp.filename)}
-                      className="text-xs text-red-400 hover:text-red-300"
+                      onClick={() => handleDeleteImport(imp.id, imp.filename)}
+                      className="text-xs"
+                      style={{ color: 'var(--oe-error)' }}
                       title="Delete this import + all its rows"
                     >
                       ✕
@@ -350,96 +422,180 @@ export function PriceLibrarySection() {
         </div>
       )}
 
-      {/* Inline browser, opt-in */}
-      {showBrowser && (
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search corpus (KVH, OSB, дограма…)"
-            className="bg-surface-tertiary border border-border-light rounded-full px-3 py-1.5 text-sm w-full md:w-72 outline-none"
-          />
-          {rows.length === 0 ? (
-            <p className="text-xs text-content-tertiary italic">
-              {search ? 'No matches.' : 'No rows.'}
-            </p>
-          ) : (
-            <div className="rounded-lg border border-border-light/50 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-content-tertiary text-[10px] uppercase tracking-wider bg-surface-secondary/40">
-                  <tr>
-                    <th className="px-3 py-2">Description</th>
-                    <th className="px-3 py-2 w-14">Unit</th>
-                    <th className="px-3 py-2 w-20 text-right">Qty</th>
-                    <th className="px-3 py-2 w-24 text-right">Material €</th>
-                    <th className="px-3 py-2 w-24 text-right">Labour €</th>
-                    <th className="px-3 py-2 w-24 text-right">Total €</th>
-                    <th className="px-3 py-2 w-24 text-content-tertiary">Sheet</th>
-                    <th className="px-3 py-2 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr
-                      key={r.id}
-                      className="border-t border-border-light/30 hover:bg-surface-secondary/30"
+      {/* Filter row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search (description, e.g. KVH, OSB, дограма…)"
+          className="oe-input flex-1 min-w-[220px] !rounded-full"
+        />
+        <select
+          value={scopeImportId}
+          onChange={(e) => setScopeImportId(e.target.value)}
+          className="bg-surface-tertiary border border-border-light rounded-full px-3 py-1.5 text-xs text-content-primary outline-none"
+        >
+          <option value="">All offers</option>
+          {imports.map((imp) => (
+            <option key={imp.id} value={imp.id}>
+              {imp.filename}
+            </option>
+          ))}
+          <option value="manual" disabled>
+            ──────────
+          </option>
+        </select>
+        <button
+          onClick={() => fetchRows(search, scopeImportId, page)}
+          className="oe-btn-ghost oe-btn-sm"
+          title="Reload"
+          aria-label="Reload"
+        >
+          <RefreshCw size={13} />
+        </button>
+      </div>
+
+      {/* Browser table */}
+      <div className="rounded-lg border border-border-light/60 overflow-x-auto">
+        <table className="oe-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th className="w-16">Unit</th>
+              <th className="w-20 !text-right">Qty</th>
+              <th className="w-24 !text-right">Material €</th>
+              <th className="w-24 !text-right">Labour €</th>
+              <th className="w-24 !text-right">Total €</th>
+              <th className="w-28">Origin</th>
+              <th className="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="text-center !py-6 text-content-tertiary text-xs">
+                  Loading…
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="text-center !py-6 text-xs"
+                  style={{ color: 'var(--oe-error)' }}
+                >
+                  {error}
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center !py-10 text-content-tertiary">
+                  <div className="oe-display text-[18px] text-content-secondary">
+                    {search || scopeImportId ? 'No matches.' : 'No rows yet.'}
+                  </div>
+                  <p className="text-xs mt-1">
+                    {search || scopeImportId
+                      ? 'Try broadening the search or switching the offer filter.'
+                      : 'Upload an XLSX offer or add a manual row to get started.'}
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => {
+                const origin = r.import_id
+                  ? importMap.get(r.import_id)?.filename ?? '—'
+                  : 'manual';
+                return (
+                  <tr key={r.id}>
+                    <td className="text-content-secondary max-w-md">
+                      <EditableCell
+                        value={r.description}
+                        onCommit={(v) => handleEdit(r.id, 'description', v)}
+                      />
+                    </td>
+                    <td className="text-xs">
+                      <EditableCell
+                        value={r.unit}
+                        onCommit={(v) => handleEdit(r.id, 'unit', v)}
+                      />
+                    </td>
+                    <td className="oe-num text-xs">
+                      <EditableNumber
+                        value={r.quantity}
+                        onCommit={(v) => handleEdit(r.id, 'quantity', v)}
+                      />
+                    </td>
+                    <td className="oe-num text-xs">
+                      <EditableNumber
+                        value={r.material_price_eur}
+                        onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
+                      />
+                    </td>
+                    <td className="oe-num text-xs">
+                      <EditableNumber
+                        value={r.labor_price_eur}
+                        onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
+                      />
+                    </td>
+                    <td className="oe-num text-xs font-medium text-content-primary">
+                      {r.total_unit_price_eur?.toFixed(2) ?? '—'}
+                    </td>
+                    <td
+                      className="text-[11px] text-content-tertiary truncate"
+                      title={
+                        r.import_id && drawingMap.has(importMap.get(r.import_id)?.drawing_id ?? '')
+                          ? `pinned to ${drawingMap.get(importMap.get(r.import_id)!.drawing_id!)}`
+                          : origin
+                      }
                     >
-                      <td className="px-3 py-1.5 text-content-secondary max-w-md">
-                        <EditableCell
-                          value={r.description}
-                          onCommit={(v) => handleEdit(r.id, 'description', v)}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-xs">
-                        <EditableCell
-                          value={r.unit}
-                          onCommit={(v) => handleEdit(r.id, 'unit', v)}
-                          width={48}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-numeric text-xs">
-                        <EditableNumber
-                          value={r.quantity}
-                          onCommit={(v) => handleEdit(r.id, 'quantity', v)}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-numeric text-xs">
-                        <EditableNumber
-                          value={r.material_price_eur}
-                          onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-numeric text-xs">
-                        <EditableNumber
-                          value={r.labor_price_eur}
-                          onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-numeric text-xs font-medium text-content-primary">
-                        {r.total_unit_price_eur?.toFixed(2) ?? '—'}
-                      </td>
-                      <td
-                        className="px-3 py-1.5 text-[11px] text-content-tertiary truncate"
-                        title={r.source_sheet ?? ''}
+                      {origin}
+                    </td>
+                    <td className="!text-right">
+                      <button
+                        onClick={() => handleDeleteRow(r.id)}
+                        className="text-[11px]"
+                        style={{ color: 'var(--oe-error)' }}
+                        title="Delete row"
                       >
-                        {r.source_sheet ?? '—'}
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <button
-                          onClick={() => handleDeleteRow(r.id)}
-                          className="text-[11px] text-red-400 hover:text-red-300"
-                          title="Delete row"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalRowsForFilter > 0 && (
+        <div className="flex items-center justify-between text-[11.5px] text-content-tertiary">
+          <span>
+            <span className="font-numeric">{fromIdx}</span>–
+            <span className="font-numeric">{toIdx}</span> of{' '}
+            <span className="font-numeric">{totalRowsForFilter}</span>
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="oe-btn-ghost oe-btn-sm"
+            >
+              ←
+            </button>
+            <span className="font-numeric px-2">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="oe-btn-ghost oe-btn-sm"
+            >
+              →
+            </button>
+          </div>
         </div>
       )}
 
@@ -462,43 +618,52 @@ export function PriceLibrarySection() {
                     <div className="text-[11px] text-content-tertiary">
                       <span className="font-numeric">{m.overlapping_rows}</span>/
                       <span className="font-numeric">{m.total_rows}</span> rows match —
-                      <span className="font-numeric"> {m.overlap_pct.toFixed(0)}%</span>{' '}
-                      overlap · {new Date(m.imported_at).toLocaleDateString('en-GB')}
+                      <span className="font-numeric"> {m.overlap_pct.toFixed(0)}%</span> overlap ·{' '}
+                      {new Date(m.imported_at).toLocaleDateString('en-GB')}
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
             <div className="flex items-center justify-end gap-2 mt-4">
-              <button onClick={() => handleConflictResolve('skip')} className="oe-btn-ghost">
+              <button onClick={() => handleConflictResolve('skip')} className="oe-btn-ghost oe-btn-sm">
                 Skip — keep existing
               </button>
               <button
                 onClick={() => handleConflictResolve('replace')}
-                className="oe-btn-secondary"
+                className="oe-btn-secondary oe-btn-sm"
               >
                 Replace
               </button>
-              <button onClick={() => handleConflictResolve('add')} className="oe-btn-primary">
+              <button onClick={() => handleConflictResolve('add')} className="oe-btn-primary oe-btn-sm">
                 Add anyway
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Add row modal */}
+      {addOpen && (
+        <AddRowModal
+          imports={imports}
+          defaultImportId={scopeImportId}
+          onCancel={() => setAddOpen(false)}
+          onSubmit={handleAddRow}
+        />
+      )}
     </section>
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────
 // Inline-editable text cell. Click to edit, Enter / blur to commit, Esc to cancel.
 function EditableCell({
   value,
   onCommit,
-  width,
 }: {
   value: string;
   onCommit: (v: string) => void;
-  width?: number;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -538,7 +703,6 @@ function EditableCell({
           setEditing(false);
         }
       }}
-      style={width ? { width } : undefined}
       className="bg-surface-tertiary border border-border-light rounded px-1.5 py-0.5 text-sm w-full outline-none focus:border-content-tertiary"
     />
   );
@@ -595,5 +759,157 @@ function EditableNumber({
       }}
       className="bg-surface-tertiary border border-border-light rounded px-1.5 py-0.5 text-sm w-20 text-right outline-none focus:border-content-tertiary font-numeric"
     />
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+function AddRowModal({
+  imports,
+  defaultImportId,
+  onCancel,
+  onSubmit,
+}: {
+  imports: CorpusImport[];
+  defaultImportId: string;
+  onCancel: () => void;
+  onSubmit: (input: {
+    description: string;
+    unit: string;
+    quantity: string;
+    material_price_eur: string;
+    labor_price_eur: string;
+    sek_code: string;
+    import_id: string;
+  }) => void;
+}) {
+  const [form, setForm] = useState({
+    description: '',
+    unit: 'М2',
+    quantity: '',
+    material_price_eur: '',
+    labor_price_eur: '',
+    sek_code: '',
+    import_id: defaultImportId,
+  });
+
+  const valid = form.description.trim().length > 0 && form.unit.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="oe-card max-w-lg w-full p-5 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-medium text-content-primary">Add a manual row</h3>
+            <p className="text-[11.5px] text-content-tertiary mt-1">
+              Adds straight to your corpus — RAG can pull from it like any imported row.
+            </p>
+          </div>
+          <button onClick={onCancel} className="oe-btn-ghost oe-btn-sm oe-btn-icon" aria-label="Close">
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Description *">
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="e.g. KVH 8x10 — стенна конструкция"
+              className="oe-input"
+            />
+          </Field>
+          <Field label="Unit *">
+            <select
+              value={form.unit}
+              onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+              className="oe-input"
+            >
+              {['М2', 'М3', 'М', 'БР', 'КГ', 'Т', 'Л', 'КОМПЛ.'].map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Qty">
+            <input
+              type="number"
+              step="0.01"
+              value={form.quantity}
+              onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+              className="oe-input font-numeric"
+            />
+          </Field>
+          <Field label="СЕК код">
+            <input
+              type="text"
+              value={form.sek_code}
+              onChange={(e) => setForm((f) => ({ ...f, sek_code: e.target.value }))}
+              placeholder="СЕК05.002"
+              className="oe-input"
+            />
+          </Field>
+          <Field label="Material €">
+            <input
+              type="number"
+              step="0.01"
+              value={form.material_price_eur}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, material_price_eur: e.target.value }))
+              }
+              className="oe-input font-numeric"
+            />
+          </Field>
+          <Field label="Labour €">
+            <input
+              type="number"
+              step="0.01"
+              value={form.labor_price_eur}
+              onChange={(e) => setForm((f) => ({ ...f, labor_price_eur: e.target.value }))}
+              className="oe-input font-numeric"
+            />
+          </Field>
+          <div className="col-span-2">
+            <Field label="Pin to offer (optional)">
+              <select
+                value={form.import_id}
+                onChange={(e) => setForm((f) => ({ ...f, import_id: e.target.value }))}
+                className="oe-input"
+              >
+                <option value="">— Manual (not pinned)</option>
+                {imports.map((imp) => (
+                  <option key={imp.id} value={imp.id}>
+                    {imp.filename}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button onClick={onCancel} className="oe-btn-ghost oe-btn-sm">
+            Cancel
+          </button>
+          <button
+            disabled={!valid}
+            onClick={() => onSubmit(form)}
+            className="oe-btn-primary oe-btn-sm"
+          >
+            Add row
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-[11px] text-content-tertiary mb-1.5">{label}</span>
+      {children}
+    </label>
   );
 }

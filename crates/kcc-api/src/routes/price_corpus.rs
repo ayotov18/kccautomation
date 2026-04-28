@@ -18,7 +18,7 @@ use crate::{error::ApiError, state::AppState};
 pub fn price_corpus_routes() -> Router<AppState> {
     Router::new()
         .route("/price-corpus/import", post(import_corpus))
-        .route("/price-corpus", get(list_corpus))
+        .route("/price-corpus", get(list_corpus).post(create_corpus_row))
         .route("/price-corpus/imports", get(list_imports))
         .route(
             "/price-corpus/imports/{import_id}",
@@ -338,6 +338,9 @@ struct ListCorpusQuery {
     q: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
+    /// Scope to a single import (offer XLSX). When omitted, returns the
+    /// full corpus across imports + manual rows.
+    import_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -387,11 +390,13 @@ async fn list_corpus(
          FROM user_price_corpus
          WHERE user_id = $1
            AND ($2::text IS NULL OR description ILIKE $2)
+           AND ($3::uuid IS NULL OR import_id = $3)
          ORDER BY created_at DESC
-         LIMIT $3 OFFSET $4",
+         LIMIT $4 OFFSET $5",
     )
     .bind(user_id)
     .bind(filter.as_deref())
+    .bind(q.import_id)
     .bind(limit)
     .bind(offset)
     .fetch_all(&state.db)
@@ -417,10 +422,12 @@ async fn list_corpus(
 
     let total: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM user_price_corpus WHERE user_id = $1
-         AND ($2::text IS NULL OR description ILIKE $2)",
+         AND ($2::text IS NULL OR description ILIKE $2)
+         AND ($3::uuid IS NULL OR import_id = $3)",
     )
     .bind(user_id)
     .bind(filter.as_deref())
+    .bind(q.import_id)
     .fetch_one(&state.db)
     .await
     .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
@@ -615,4 +622,63 @@ async fn delete_corpus_row(
         return Err(ApiError::NotFound("Corpus row not found".into()));
     }
     Ok(Json(serde_json::json!({ "deleted": true })))
+}
+
+#[derive(Deserialize)]
+struct CreateCorpusRowBody {
+    description: String,
+    unit: String,
+    quantity: Option<f64>,
+    material_price_eur: Option<f64>,
+    labor_price_eur: Option<f64>,
+    sek_code: Option<String>,
+    /// Optional pin to an import — defaults to a manual (no-import) row.
+    import_id: Option<Uuid>,
+}
+
+/// Create a manual corpus row. Lets the user add prices that didn't come
+/// from an XLSX upload (e.g. a one-off line item or a market-rate research
+/// result). The new row participates in RAG just like imported rows.
+async fn create_corpus_row(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(body): Json<CreateCorpusRowBody>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let description = body.description.trim();
+    if description.is_empty() {
+        return Err(ApiError::BadRequest("description is required".into()));
+    }
+    let unit = body.unit.trim();
+    if unit.is_empty() {
+        return Err(ApiError::BadRequest("unit is required".into()));
+    }
+
+    let total = match (body.material_price_eur, body.labor_price_eur) {
+        (Some(m), Some(l)) => Some(m + l),
+        (Some(m), None) => Some(m),
+        (None, Some(l)) => Some(l),
+        _ => None,
+    };
+
+    let id: Uuid = sqlx::query_scalar(
+        "INSERT INTO user_price_corpus (
+            user_id, import_id, sek_code, description, unit, quantity,
+            material_price_eur, labor_price_eur, total_unit_price_eur, currency
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'EUR')
+         RETURNING id",
+    )
+    .bind(user_id)
+    .bind(body.import_id)
+    .bind(body.sek_code.as_deref())
+    .bind(description)
+    .bind(unit)
+    .bind(body.quantity)
+    .bind(body.material_price_eur)
+    .bind(body.labor_price_eur)
+    .bind(total)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
+
+    Ok(Json(serde_json::json!({ "id": id })))
 }
