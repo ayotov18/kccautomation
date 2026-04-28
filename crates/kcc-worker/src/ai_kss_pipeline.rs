@@ -1004,9 +1004,13 @@ async fn run_generation_phase(job: AiKssJob, ctx: &WorkerContext) -> Result<()> 
     .fetch_one(&ctx.db)
     .await
     .unwrap_or(false);
-    let overheads = if mode == "rag" && has_linked_offer {
+    // When the drawing has a linked offer XLSX, the offer's prices already
+    // bake in the contractor's markup — adding our own contingency/delivery/
+    // profit on top would double-count. Zero the overheads regardless of
+    // mode (was previously rag-only). VAT stays — that's a separate tax.
+    let overheads = if has_linked_offer {
         tracing::info!(
-            %session_id, %drawing_id,
+            %session_id, %drawing_id, %mode,
             "Linked offer detected — zeroing overheads (offer is final price, VAT-only on top)",
         );
         kcc_core::kss::types::KssOverheads {

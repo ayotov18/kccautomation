@@ -443,14 +443,14 @@ export default function KssReportPage() {
             <h1 className="text-2xl font-bold mt-2">
               Количествено-Стойностна Сметка
               {(report.ai_enhanced as boolean) && (
-                <span className="ml-2 px-2 py-1 bg-sky-900/40 text-sky-300 rounded text-xs font-medium align-middle">AI-enhanced</span>
+                <span className="ml-2 px-2 py-1 bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] rounded text-xs font-medium align-middle">AI-enhanced</span>
               )}
             </h1>
             <p className="text-sm text-content-tertiary mt-1">Generated: {new Date(report.generated_at as string).toLocaleString('bg-BG')}</p>
           </div>
           <div className="flex items-center gap-3">
             {totalUnsaved > 0 && (
-              <span className="text-xs text-sky-300">
+              <span className="text-xs text-[color:var(--oe-accent)]">
                 {totalUnsaved} unsaved{' '}
                 {pendingAccepts.size > 0 || pendingRejects.size > 0
                   ? `(${editCount} edit${editCount === 1 ? '' : 's'}${
@@ -462,7 +462,7 @@ export default function KssReportPage() {
             {suggestions.length > 0 && (
               <button onClick={() => setShowSuggestions(true)} className="oe-btn-secondary">
                 AI Предложения
-                <span className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-semibold">
+                <span className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-[color:var(--oe-accent-soft-bg)] text-[color:var(--oe-accent)] font-semibold">
                   {suggestions.length}
                 </span>
               </button>
@@ -572,7 +572,7 @@ export default function KssReportPage() {
             <div className="text-xs text-content-tertiary">Позиции</div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-emerald-400 font-numeric">
+            <div className="text-2xl font-bold font-numeric" style={{ color: 'var(--oe-text-primary)' }}>
               {displayedSubtotal.toFixed(2)}
             </div>
             <div className="text-xs text-content-tertiary">Общо СМР (€)</div>
@@ -586,7 +586,7 @@ export default function KssReportPage() {
             </div>
           </div>
           <div className="oe-card p-4 text-center">
-            <div className="text-2xl font-bold text-sky-300 font-numeric">
+            <div className="text-2xl font-bold font-numeric" style={{ color: 'var(--oe-accent)' }}>
               {displayedFinalTotal.toFixed(2)}
             </div>
             <div className="text-xs text-content-tertiary">Общо с ДДС (€)</div>
@@ -644,8 +644,9 @@ export default function KssReportPage() {
                 label: 'Обща стойност',
                 content: (() => {
                   // Canonical cost ladder — prefer the persisted values so the
-                  // UI matches the audit trail byte-for-byte. Fall back to
-                  // on-the-fly computation only if the older columns are null.
+                  // UI matches the audit trail byte-for-byte. When viewing a
+                  // single module tab, scale every line by the same proportion
+                  // the top KPI strip uses, so both halves of the screen agree.
                   const ladder = (report?.cost_ladder as {
                     smr_subtotal?: number | null;
                     contingency?: number | null;
@@ -655,13 +656,20 @@ export default function KssReportPage() {
                     vat?: number | null;
                     final_total?: number | null;
                   } | undefined) ?? {};
-                  const smr = ladder.smr_subtotal ?? subtotal;
-                  const contingency = ladder.contingency ?? (subtotal * (pricing.contingency_pct / 100));
-                  const delivery = ladder.delivery_storage ?? (subtotal * (pricing.dr_materials_pct / 100));
-                  const profit = ladder.profit ?? (subtotal * (pricing.profit_pct / 100));
-                  const beforeVat = ladder.pre_vat_total ?? (smr + contingency + delivery + profit);
-                  const vat = ladder.vat ?? (beforeVat * (pricing.vat_rate_pct / 100));
-                  const grand = ladder.final_total ?? (beforeVat + vat);
+                  const rawSmr = ladder.smr_subtotal ?? subtotal;
+                  const rawContingency = ladder.contingency ?? (subtotal * (pricing.contingency_pct / 100));
+                  const rawDelivery = ladder.delivery_storage ?? (subtotal * (pricing.dr_materials_pct / 100));
+                  const rawProfit = ladder.profit ?? (subtotal * (pricing.profit_pct / 100));
+                  const rawBeforeVat = ladder.pre_vat_total ?? (rawSmr + rawContingency + rawDelivery + rawProfit);
+                  const rawVat = ladder.vat ?? (rawBeforeVat * (pricing.vat_rate_pct / 100));
+                  const rawGrand = ladder.final_total ?? (rawBeforeVat + rawVat);
+                  const smr = rawSmr * proportion;
+                  const contingency = rawContingency * proportion;
+                  const delivery = rawDelivery * proportion;
+                  const profit = rawProfit * proportion;
+                  const beforeVat = rawBeforeVat * proportion;
+                  const vat = rawVat * proportion;
+                  const grand = rawGrand * proportion;
                   return (
                     <div className="px-5 py-4 space-y-1 text-sm">
                       <TotalRow label="ОБЩО СМР" value={smr} emphasis />
@@ -820,7 +828,7 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
         </thead>
         <tbody>
           {section.items.map((item, ii) => (
-            <tr key={ii} className={`border-b border-border-light/30 last:border-b-0 hover:bg-surface-secondary/30 ${item.edited ? 'bg-sky-900/10' : ''}`}>
+            <tr key={ii} className={`border-b border-border-light/30 last:border-b-0 hover:bg-surface-secondary/30 ${item.edited ? 'bg-[color:var(--oe-accent-soft-bg)]' : ''}`}>
               <td className="px-3 py-1.5 text-content-tertiary text-xs font-mono">{section.number}.{item.item_no}</td>
               <td className="px-3 py-1.5">
                 <EditableCell value={item.description} onChange={v => onEdit(sectionIdx, ii, 'description', v)} edited={!!item.edited && item.description !== item.original_description} />
@@ -841,11 +849,11 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
             </tr>
           ))}
           {isAdding && (
-            <tr className="border-b border-sky-500/30 bg-sky-900/10">
-              <td className="px-3 py-1.5 text-sky-300 text-xs">+</td>
+            <tr className="border-b border-[color:var(--oe-accent)]/30 bg-[color:var(--oe-accent-soft-bg)]">
+              <td className="px-3 py-1.5 text-[color:var(--oe-accent)] text-xs">+</td>
               <td className="px-3 py-1.5">
                 <input value={newItem.description} onChange={e => setNewItem(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Доставка и монтаж на..." className="w-full bg-transparent border-b border-sky-500/40 text-sm outline-none px-1 py-0.5" />
+                  placeholder="Доставка и монтаж на..." className="w-full bg-transparent border-b border-[color:var(--oe-accent)]/40 text-sm outline-none px-1 py-0.5" />
               </td>
               <td className="px-3 py-1.5">
                 <Select
@@ -861,7 +869,7 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
               </td>
               <td className="px-3 py-1.5">
                 <input type="number" value={newItem.quantity || ''} onChange={e => setNewItem(p => ({ ...p, quantity: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0" className="w-full bg-transparent border-b border-sky-500/40 text-sm text-right outline-none px-1 py-0.5 font-mono" />
+                  placeholder="0" className="w-full bg-transparent border-b border-[color:var(--oe-accent)]/40 text-sm text-right outline-none px-1 py-0.5 font-mono" />
               </td>
               <td className="px-3 py-1.5"></td>
               <td className="px-3 py-1.5"></td>
@@ -937,7 +945,7 @@ function TotalRow({
       <span>{label}</span>
       <span
         className={`font-mono ${
-          grand ? 'text-sky-300' : emphasis ? 'text-content-primary' : ''
+          grand ? 'text-[color:var(--oe-accent)]' : emphasis ? 'text-content-primary' : ''
         }`}
       >
         {Number.isFinite(value) ? value.toFixed(2) : '—'} €
@@ -962,7 +970,7 @@ function EditableCell({ value, onChange, edited = false, className = '', type = 
         onBlur={() => setEditing(false)}
         onKeyDown={e => e.key === 'Enter' && setEditing(false)}
         autoFocus
-        className={`w-full bg-surface-tertiary border border-sky-500 rounded px-1.5 py-0.5 text-sm focus:outline-none ${className}`}
+        className={`w-full bg-surface-tertiary border border-[color:var(--oe-accent)] rounded px-1.5 py-0.5 text-sm focus:outline-none ${className}`}
       />
     );
   }
@@ -970,7 +978,7 @@ function EditableCell({ value, onChange, edited = false, className = '', type = 
   return (
     <span
       onClick={() => setEditing(true)}
-      className={`cursor-pointer hover:text-sky-200 ${edited ? 'text-sky-200' : ''} ${className}`}
+      className={`cursor-pointer hover:text-[color:var(--oe-accent)] ${edited ? 'text-[color:var(--oe-accent)]' : ''} ${className}`}
       title="Click to edit"
     >
       {value || '-'}
@@ -1015,7 +1023,7 @@ function ModuleTabStrip({
         onClick={() => onSelect('all')}
         className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${
           activeStructure === 'all'
-            ? 'border-sky-400 text-sky-300 font-medium'
+            ? 'border-[color:var(--oe-accent)] text-[color:var(--oe-accent)] font-medium'
             : 'border-transparent text-content-tertiary hover:text-content-secondary'
         }`}
       >
@@ -1032,7 +1040,7 @@ function ModuleTabStrip({
             key={s.id}
             className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${
               isActive
-                ? 'border-sky-400 text-sky-300 font-medium'
+                ? 'border-[color:var(--oe-accent)] text-[color:var(--oe-accent)] font-medium'
                 : 'border-transparent text-content-tertiary hover:text-content-secondary'
             }`}
             onClick={() => !isEditing && onSelect(s.id)}
@@ -1049,7 +1057,7 @@ function ModuleTabStrip({
                   if (e.key === 'Escape') cancel();
                 }}
                 autoFocus
-                className="bg-surface-tertiary border border-sky-500 rounded px-1.5 py-0.5 text-sm focus:outline-none"
+                className="bg-surface-tertiary border border-[color:var(--oe-accent)] rounded px-1.5 py-0.5 text-sm focus:outline-none"
                 style={{ minWidth: 80 }}
               />
             ) : (

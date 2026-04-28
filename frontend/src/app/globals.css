@@ -733,6 +733,18 @@
     padding-right: 18px;
   }
 
+  /* AI loader animations */
+  @keyframes kccIndeterminate {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(150%); }
+    100% { transform: translateX(350%); }
+  }
+  @keyframes kccPulseGlow {
+    0%, 100% { box-shadow: 0 0 18px var(--oe-accent-soft-bg); transform: scale(1); }
+    50% { box-shadow: 0 0 36px var(--oe-accent-soft-bg); transform: scale(1.06); }
+  }
+  .kcc-pulse-glow { animation: kccPulseGlow 2.4s ease-in-out infinite; }
+
   /* KSS accordion scroll fade */
   .kss-scroll-area {
     mask-image: linear-gradient(

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { AiResearchItem } from '@/types';
+import { AiResearchLoader } from '@/components/ui/AiResearchLoader';
 
 export default function AiKssPrepare() {
   const params = useParams();
@@ -123,31 +124,20 @@ export default function AiKssPrepare() {
 
   if (status === 'loading' || status === 'researching') {
     return (
-      <div className="oe-fade-in">
-<div className="max-w-4xl mx-auto px-6 py-12 text-center">
-          <div className="mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <h2 className="text-xl font-bold mb-2">Perplexity is researching prices...</h2>
-            <p className="text-content-tertiary text-sm">Searching Bulgarian construction price sources</p>
-          </div>
-          <div className="w-full max-w-md mx-auto bg-surface-tertiary rounded-full h-2">
-            <div className="bg-sky-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
-          </div>
-          <p className="text-xs text-content-tertiary mt-2">{progress}%</p>
-        </div>
-      </div>
+      <AiResearchLoader
+        title="AI is researching prices"
+        subtitle="Searching Bulgarian construction price sources"
+        progress={progress}
+      />
     );
   }
 
   if (status === 'generating') {
     return (
-      <div className="oe-fade-in">
-<div className="max-w-4xl mx-auto px-6 py-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
-          <h2 className="text-xl font-bold mb-2">Opus 4.6 is generating your KSS...</h2>
-          <p className="text-content-tertiary text-sm">Creating Количествено-Стойностна Сметка from reviewed data</p>
-        </div>
-      </div>
+      <AiResearchLoader
+        title="Building your KSS"
+        subtitle="Opus 4.6 is composing the Количествено-Стойностна Сметка from your reviewed prices"
+      />
     );
   }
 
@@ -160,7 +150,7 @@ export default function AiKssPrepare() {
             <button onClick={() => router.push(`/drawings/${drawingId}`)} className="text-xs text-content-tertiary hover:text-content-primary mb-2 block">&larr; Back to Drawing</button>
             <h1 className="text-2xl font-bold">
               AI Price Research
-              <span className="ml-2 px-2 py-1 bg-sky-900/40 text-sky-300 rounded text-xs font-medium">Perplexity</span>
+              <span className="oe-badge ml-2" data-variant="accent">AI</span>
             </h1>
             <p className="text-sm text-content-tertiary mt-1">Review, edit, and approve prices before generating KSS with Opus 4.6</p>
           </div>
@@ -219,13 +209,13 @@ export default function AiKssPrepare() {
                     item.price_max_eur != null &&
                     item.price_min_eur < item.price_max_eur;
                   return (
-                    <tr key={item.id} className={`border-b border-border-light/30 ${!item.approved ? 'opacity-40' : ''} ${item.edited ? 'bg-sky-900/10' : ''}`}>
+                    <tr key={item.id} className={`border-b border-border-light/30 ${!item.approved ? 'opacity-40' : ''} ${item.edited ? 'bg-[color:var(--oe-accent-soft-bg)]' : ''}`}>
                       <td className="px-4 py-2">
                         <input
                           type="checkbox"
                           checked={item.approved}
                           onChange={e => handleToggle(item.id, e.target.checked)}
-                          className="accent-sky-500"
+                          className="accent-[color:var(--oe-accent)]"
                         />
                       </td>
                       <td className="px-4 py-2">
@@ -233,7 +223,7 @@ export default function AiKssPrepare() {
                           type="text"
                           value={item.description}
                           onChange={e => handleEdit(item.id, 'description', e.target.value)}
-                          className="bg-transparent border-none outline-none w-full text-content-primary focus:text-sky-200"
+                          className="bg-transparent border-none outline-none w-full text-content-primary focus:text-[color:var(--oe-accent)]"
                           title={item.notes ?? undefined}
                         />
                       </td>
@@ -244,7 +234,7 @@ export default function AiKssPrepare() {
                           step="0.01"
                           value={item.material_price_eur ?? ''}
                           onChange={e => handleEdit(item.id, 'material_price_eur', e.target.value)}
-                          className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-sky-200 font-mono"
+                          className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-[color:var(--oe-accent)] font-mono"
                         />
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -253,10 +243,10 @@ export default function AiKssPrepare() {
                           step="0.01"
                           value={item.labor_price_eur ?? ''}
                           onChange={e => handleEdit(item.id, 'labor_price_eur', e.target.value)}
-                          className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-sky-200 font-mono"
+                          className="bg-transparent border-none outline-none w-20 text-right text-content-secondary focus:text-[color:var(--oe-accent)] font-mono"
                         />
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-sky-200">
+                      <td className="px-4 py-2 text-right font-mono text-[color:var(--oe-accent)]">
                         {total > 0 ? total.toFixed(2) : '—'}
                       </td>
                       <td className="px-4 py-2 text-right text-content-tertiary text-xs font-mono">
@@ -270,7 +260,7 @@ export default function AiKssPrepare() {
                             href={item.source_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sky-300 hover:text-sky-200 text-xs underline decoration-dotted"
+                            className="text-[color:var(--oe-accent)] hover:text-[color:var(--oe-accent)] text-xs underline decoration-dotted"
                             title={item.source_url}
                           >
                             link
@@ -308,7 +298,7 @@ function ModeChooser({
     {
       key: 'ai' as const,
       title: 'AI Search',
-      desc: 'Perplexity researches current Bulgarian market prices online; Opus 4.6 builds the КСС.',
+      desc: 'AI researches current Bulgarian market prices online; Opus 4.6 builds the КСС.',
       hint: 'Best when you have no prior offers loaded yet.',
       disabled: false,
     },
@@ -346,16 +336,16 @@ function ModeChooser({
               disabled={o.disabled}
               className={`text-left p-3 rounded-lg border transition-colors ${
                 active
-                  ? 'border-sky-400 bg-sky-500/10'
+                  ? 'border-[color:var(--oe-accent)] bg-[color:var(--oe-accent-soft-bg)]'
                   : o.disabled
                   ? 'border-border-light/30 opacity-50 cursor-not-allowed'
-                  : 'border-border-light hover:border-sky-500/50'
+                  : 'border-border-light hover:border-[color:var(--oe-accent)]/50'
               }`}
             >
               <div className="flex items-center gap-2">
                 <span
                   className={`w-3 h-3 rounded-full border ${
-                    active ? 'border-sky-400 bg-sky-400' : 'border-border-light'
+                    active ? 'border-[color:var(--oe-accent)] bg-[color:var(--oe-accent)]' : 'border-border-light'
                   }`}
                 />
                 <span className="font-medium text-sm">{o.title}</span>

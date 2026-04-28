@@ -80,7 +80,7 @@ export function WidgetCarousel({
       aria-roledescription="carousel"
       aria-label="KSS report widgets"
       className={clsx(
-        'oe-card overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40',
+        'oe-card overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--oe-accent)]/40',
         className,
       )}
     >
@@ -148,9 +148,9 @@ export function WidgetCarousel({
               aria-label={`${s.label} (${i + 1} от ${slides.length})`}
               aria-selected={active}
               className={clsx(
-                'transition-all duration-200 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40',
+                'transition-all duration-200 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--oe-accent)]/40',
                 active
-                  ? 'w-5 h-1.5 bg-sky-400'
+                  ? 'w-5 h-1.5 bg-[color:var(--oe-accent)]'
                   : 'w-1.5 h-1.5 bg-content-tertiary/40 hover:bg-content-tertiary/70',
               )}
             />
