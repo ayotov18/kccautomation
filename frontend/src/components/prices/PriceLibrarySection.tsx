@@ -465,11 +465,18 @@ export function PriceLibrarySection() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={8} className="text-center !py-6 text-content-tertiary text-xs">
-                  Loading…
-                </td>
-              </tr>
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`sk-${i}`} className="kcc-skeleton-row">
+                  <td><div className="oe-skeleton h-3 w-3/4" /></td>
+                  <td><div className="oe-skeleton h-3 w-8" /></td>
+                  <td className="!text-right"><div className="oe-skeleton h-3 w-12 ml-auto" /></td>
+                  <td className="!text-right"><div className="oe-skeleton h-3 w-14 ml-auto" /></td>
+                  <td className="!text-right"><div className="oe-skeleton h-3 w-14 ml-auto" /></td>
+                  <td className="!text-right"><div className="oe-skeleton h-3 w-16 ml-auto" /></td>
+                  <td><div className="oe-skeleton h-3 w-20" /></td>
+                  <td></td>
+                </tr>
+              ))
             ) : error ? (
               <tr>
                 <td

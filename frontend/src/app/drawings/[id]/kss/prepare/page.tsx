@@ -112,7 +112,7 @@ export default function AiKssPrepare() {
             <p className="text-content-secondary text-sm mb-4">
               {isAuth
                 ? 'The OpenRouter API key is rejected (401). Rotate OPENROUTER_API_KEY in the worker service and try again.'
-                : 'The KSS research pipeline could not finish. Details below — check the worker logs for the full trace.'}
+                : 'The KCC research pipeline could not finish. Details below — check the worker logs for the full trace.'}
             </p>
             <pre className="text-xs text-red-200 bg-black/30 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all">
               {errorMsg}
@@ -147,7 +147,7 @@ export default function AiKssPrepare() {
   if (status === 'generating') {
     return (
       <AiResearchLoader
-        title="Building your KSS"
+        title="Building your KCC"
         subtitle="Opus 4.6 is composing the Количествено-Стойностна Сметка from your reviewed prices"
       />
     );
@@ -164,7 +164,7 @@ export default function AiKssPrepare() {
               AI Price Research
               <span className="oe-badge ml-2" data-variant="accent">AI</span>
             </h1>
-            <p className="text-sm text-content-tertiary mt-1">Review, edit, and approve prices before generating KSS with Opus 4.6</p>
+            <p className="text-sm text-content-tertiary mt-1">Review, edit, and approve prices before generating KCC with Opus 4.6</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-content-tertiary">{approvedCount} of {items.length} items approved</span>
@@ -179,7 +179,7 @@ export default function AiKssPrepare() {
                 ? 'Generate from My Library'
                 : mode === 'hybrid'
                 ? 'Generate (Library + AI)'
-                : 'Generate KSS with Opus 4.6'}
+                : 'Generate KCC with Opus 4.6'}
             </button>
           </div>
         </div>

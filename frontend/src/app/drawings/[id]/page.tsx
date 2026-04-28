@@ -8,7 +8,7 @@
  * AI-generated bilingual summary that the operator redacts before signing.
  *
  * Top action row uses the unified rounded-full button system. View Drawing
- * is the primary action; KSS generation is a single secondary button that
+ * is the primary action; KCC generation is a single secondary button that
  * opens the prepare flow (mode chooser lives there).
  */
 
@@ -111,7 +111,7 @@ export default function DrawingOverviewPage() {
           </div>
 
           {/* Single action row. All same shape, primary reserved for the
-              one CTA the user is here to do (open the viewer or KSS).
+              one CTA the user is here to do (open the viewer or KCC).
               Linear-style: avoid two primaries side-by-side. */}
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -125,24 +125,24 @@ export default function DrawingOverviewPage() {
                 onClick={() => router.push(`/drawings/${drawingId}/kss`)}
                 className="oe-btn-primary"
               >
-                Open KSS
+                Open KCC
               </button>
             ) : (
               <button onClick={handleAiKss} className="oe-btn-primary">
-                Generate KSS
+                Generate KCC
               </button>
             )}
           </div>
         </div>
 
-        {/* KSS status pill — only when ready. */}
+        {/* KCC status pill — only when ready. */}
         {kssGenerated && (
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-border-light/40 bg-surface-secondary/40 px-5 py-3">
             <div className="flex items-center gap-3">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-semantic-success" />
               <div>
                 <p className="text-[13px] text-content-primary">
-                  KSS report ready
+                  KCC report ready
                   {(kss.ai_enhanced as boolean) && (
                     <span className="ml-2 text-[10.5px] font-medium uppercase tracking-wider text-content-tertiary">
                       AI-enhanced

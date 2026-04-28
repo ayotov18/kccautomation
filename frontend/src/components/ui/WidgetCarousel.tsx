@@ -78,7 +78,7 @@ export function WidgetCarousel({
       tabIndex={0}
       role="region"
       aria-roledescription="carousel"
-      aria-label="KSS report widgets"
+      aria-label="KCC report widgets"
       className={clsx(
         'oe-card overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--oe-accent)]/40',
         className,

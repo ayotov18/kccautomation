@@ -35,7 +35,7 @@ const routeLabels: Record<string, string> = {
   drawings: 'Drawings',
   upload: 'Upload',
   viewer: 'Viewer',
-  kss: 'KSS Report',
+  kss: 'KCC Report',
   prepare: 'AI Prepare',
   report: 'Report',
   costs: 'Cost Database',

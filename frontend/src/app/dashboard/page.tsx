@@ -76,7 +76,7 @@ export default function DashboardPage() {
     {
       eyebrow: 'Reports',
       value: drawingCount,
-      hint: 'one KSS per drawing',
+      hint: 'one KCC per drawing',
       href: '/files',
       spark: pseudoSpark(drawingCount + 7),
       tone: 'warning' as const,
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             <Link href="/files" className="text-content-secondary hover:text-content-primary underline decoration-content-tertiary/40 underline-offset-4">
               Files
             </Link>{' '}
-            (drawings + offers, KSS opens from each drawing) and{' '}
+            (drawings + offers, KCC opens from each drawing) and{' '}
             <Link href="/prices" className="text-content-secondary hover:text-content-primary underline decoration-content-tertiary/40 underline-offset-4">
               Prices
             </Link>{' '}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
                           href={`/drawings/${d.id}/kss`}
                           className="text-[12px] text-content-secondary hover:text-content-primary"
                         >
-                          Open KSS →
+                          Open KCC →
                         </Link>
                       </td>
                     </tr>

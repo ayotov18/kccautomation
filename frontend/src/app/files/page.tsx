@@ -201,7 +201,7 @@ function FilesPageInner() {
               Files
             </h1>
             <p className="text-[12.5px] text-content-tertiary max-w-xl">
-              Drawings and uploaded offers — all in one place. KSS reports open
+              Drawings and uploaded offers — all in one place. KCC reports open
               from each drawing.
             </p>
           </div>

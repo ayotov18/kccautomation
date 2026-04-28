@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * AI research loader. Centered hero composition: animated amber halo with
- * three orbiting dots, an italic-serif tagline, the dynamic Bulgarian
- * phase label, and a thin progress hairline. Used on the AI Price Research
- * page while Perplexity researches and Opus generates.
+ * AI research loader. Centered hero composition: animated amber halo
+ * with three orbiting dots, italic-serif accent on the last word of the
+ * headline, and a thin progress hairline. Centerpiece is the product
+ * mark — an italic serif K — instead of generic clipart.
  */
 
-import { Sparkles } from 'lucide-react';
 
 interface AiResearchLoaderProps {
   title: string;
@@ -40,17 +39,26 @@ export function AiResearchLoader({ title, subtitle, progress }: AiResearchLoader
             borderRightColor: 'var(--oe-accent-hot)',
           }}
         />
-        {/* Sparkle in the center */}
+        {/* Brand mark in the center — italic-serif K, no clipart icons. */}
         <div className="absolute inset-0 flex items-center justify-center">
           <span
-            className="kcc-pulse-glow flex items-center justify-center w-10 h-10 rounded-full"
+            className="kcc-pulse-glow flex items-center justify-center w-12 h-12 rounded-full"
             style={{
               background: 'var(--oe-accent-soft-bg)',
-              color: 'var(--oe-accent)',
               boxShadow: '0 0 24px var(--oe-accent-soft-bg)',
             }}
           >
-            <Sparkles size={18} strokeWidth={1.75} />
+            <span
+              className="oe-display"
+              style={{
+                fontSize: '24px',
+                lineHeight: 1,
+                color: 'var(--oe-accent)',
+                transform: 'translateY(1px)',
+              }}
+            >
+              K
+            </span>
           </span>
         </div>
         {/* Three orbiting dots — each on a distinct rotating layer. */}

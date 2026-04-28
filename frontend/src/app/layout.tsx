@@ -17,18 +17,18 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: 'KCC Automation — AI-driven KSS reports from DWG',
+    default: 'KCC Automation — AI-driven KCC reports from DWG',
     template: '%s · KCC Automation',
   },
   description:
     'Generate Bulgarian Количествено-Стойностна Сметка reports automatically from DWG/DXF drawings. Multi-module detection, RAG against your historical offers, full audit trail.',
   applicationName: 'KCC Automation',
   keywords: [
-    'KSS',
+    'KCC',
     'КСС',
     'количествено-стойностна сметка',
     'Bulgarian construction estimating',
-    'DWG to KSS',
+    'DWG to KCC',
     'DXF analysis',
     'BoQ',
     'bills of quantities',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'KCC Automation',
-    description: 'AI-driven Bulgarian KSS reports from DWG drawings.',
+    description: 'AI-driven Bulgarian KCC reports from DWG drawings.',
     type: 'website',
     locale: 'en_GB',
     alternateLocale: ['bg_BG'],

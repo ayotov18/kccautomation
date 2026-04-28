@@ -8,6 +8,11 @@
  *   140ms scale-fade animation, portal-mounted so it escapes overflow.
  * Items: 32px rows with amber-tint + check indicator when selected.
  *
+ * Empty-string handling: Radix Select forbids `value=""` on items (it
+ * throws at render). We accept "" at our API boundary, swap it for an
+ * internal sentinel `__empty`, and swap back on change. Consumers never
+ * see the sentinel.
+ *
  * Use this everywhere instead of native <select>.
  */
 
@@ -36,6 +41,16 @@ interface SelectProps {
   contentWidth?: 'trigger' | string;
 }
 
+const EMPTY_SENTINEL = '__empty';
+
+function toInternal(v: string): string {
+  return v === '' ? EMPTY_SENTINEL : v;
+}
+
+function fromInternal(v: string): string {
+  return v === EMPTY_SENTINEL ? '' : v;
+}
+
 export function Select({
   value,
   onChange,
@@ -48,7 +63,11 @@ export function Select({
   contentWidth = 'trigger',
 }: SelectProps) {
   return (
-    <RadixSelect.Root value={value} onValueChange={onChange} disabled={disabled}>
+    <RadixSelect.Root
+      value={toInternal(value)}
+      onValueChange={(v) => onChange(fromInternal(v))}
+      disabled={disabled}
+    >
       <RadixSelect.Trigger
         aria-label={ariaLabel}
         className={clsx('kcc-select-trigger', size === 'sm' && 'kcc-select-trigger-sm', className)}
@@ -72,7 +91,12 @@ export function Select({
         >
           <RadixSelect.Viewport className="p-1.5">
             {options.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled} hint={opt.hint}>
+              <SelectItem
+                key={opt.value || EMPTY_SENTINEL}
+                value={toInternal(opt.value)}
+                disabled={opt.disabled}
+                hint={opt.hint}
+              >
                 {opt.label}
               </SelectItem>
             ))}
