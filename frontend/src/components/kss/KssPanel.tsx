@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { KssEditor } from './KssEditor';
+import { Select } from '@/components/ui/Select';
 
 interface PriceListInfo {
   id: string;
@@ -133,18 +134,21 @@ export function KssPanel({ drawingId }: Props) {
           <div>
             <label className="block text-xs text-gray-400 mb-1">Price List</label>
             <div className="flex gap-2">
-              <select
-                value={selectedPl}
-                onChange={(e) => setSelectedPl(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
-              >
-                <option value="">Use scraped prices (auto)</option>
-                {priceLists.map((pl) => (
-                  <option key={pl.id} value={pl.id}>
-                    {pl.name} ({pl.item_count} items)
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1">
+                <Select
+                  ariaLabel="Price list"
+                  value={selectedPl}
+                  onChange={setSelectedPl}
+                  options={[
+                    { value: '', label: 'Use scraped prices (auto)' },
+                    ...priceLists.map((pl) => ({
+                      value: pl.id,
+                      label: pl.name,
+                      hint: `${pl.item_count}`,
+                    })),
+                  ]}
+                />
+              </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-2 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-400 transition-colors"

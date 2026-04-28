@@ -293,7 +293,7 @@ async fn import_corpus(
             "INSERT INTO user_price_corpus
                 (user_id, import_id, sek_code, description, unit, quantity,
                  material_price_eur, labor_price_eur, total_unit_price_eur,
-                 currency, source_sheet, source_row) ",
+                 source_sheet, source_row) ",
         );
         qb.push_values(chunk.iter(), |mut b, row| {
             b.push_bind(user_id)
@@ -305,7 +305,6 @@ async fn import_corpus(
                 .push_bind(row.material_price_eur)
                 .push_bind(row.labor_price_eur)
                 .push_bind(row.total_unit_price_eur)
-                .push_bind("EUR")
                 .push_bind(&row.source_sheet)
                 .push_bind(row.source_row as i32);
         });

@@ -151,6 +151,10 @@ function FilesPageInner() {
       }`,
       created_at: d.created_at,
       href: `/drawings/${d.id}`,
+      delete: async () => {
+        await api.deleteDrawing(d.id);
+        setDrawings((prev) => prev.filter((x) => x.id !== d.id));
+      },
     }));
     const offerRows: UnifiedFileRow[] = imports.map((imp) => ({
       kind: 'offer',

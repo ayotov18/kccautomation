@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { api, type QuantityNorm, type ProjectDistribution, type QuantitySource, type QuantityRun, type QuantityMaterial } from '@/lib/api';
+import { Select } from '@/components/ui/Select';
 
 type Tab = 'norms' | 'distributions' | 'sources' | 'history';
 
@@ -170,21 +171,23 @@ function NormsTab() {
             placeholder="Търси по описание или СЕК код…"
             className="flex-1 min-w-64 px-3 py-2 bg-surface-tertiary border border-border-light rounded-lg text-sm focus:outline-none focus:border-sky-400"
           />
-          <select
+          <Select
+            size="sm"
+            ariaLabel="СЕК група"
             value={sekGroup}
-            onChange={(e) => setSekGroup(e.target.value)}
-            className="px-3 py-2 bg-surface-tertiary border border-border-light rounded-lg text-sm"
-          >
-            {SEK_GROUPS.map(g => <option key={g.code} value={g.code}>{g.label}</option>)}
-          </select>
-          <select
+            onChange={setSekGroup}
+            options={SEK_GROUPS.map((g) => ({ value: g.code, label: g.label }))}
+          />
+          <Select
+            size="sm"
+            ariaLabel="Източник"
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="px-3 py-2 bg-surface-tertiary border border-border-light rounded-lg text-sm"
-          >
-            <option value="">Всички източници</option>
-            {sources.map(s => <option key={s.id} value={s.site_name}>{s.site_name}</option>)}
-          </select>
+            onChange={setSourceFilter}
+            options={[
+              { value: '', label: 'Всички източници' },
+              ...sources.map((s) => ({ value: s.site_name, label: s.site_name })),
+            ]}
+          />
           <label className="flex items-center gap-2 text-sm text-content-secondary">
             <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="accent-sky-400" />
             Само мои
@@ -428,9 +431,12 @@ function NormDrawer({
               />
             </Field>
             <Field label="Мярка *">
-              <select value={form.work_unit} onChange={(e) => setForm(f => ({ ...f, work_unit: e.target.value }))} className="oe-input">
-                {['М2', 'М3', 'м', 'кг', 'тон', 'бр.', 'компл.', 'L'].map(u => <option key={u}>{u}</option>)}
-              </select>
+              <Select
+                ariaLabel="Мярка"
+                value={form.work_unit}
+                onChange={(v) => setForm((f) => ({ ...f, work_unit: v }))}
+                options={['М2', 'М3', 'м', 'кг', 'тон', 'бр.', 'компл.', 'L'].map((u) => ({ value: u, label: u }))}
+              />
             </Field>
           </div>
 
@@ -815,9 +821,12 @@ function DistributionEditor({ dist, onClose, onSaved }: { dist: ProjectDistribut
         <h3 className="text-lg font-semibold">{isNew ? 'Нова метрика' : 'Редакция'}</h3>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Тип сграда">
-            <select value={form.building_type} onChange={(e) => setForm(f => ({ ...f, building_type: e.target.value }))} className="oe-input">
-              {BUILDING_TYPES.map(bt => <option key={bt.key} value={bt.key}>{bt.label}</option>)}
-            </select>
+            <Select
+              ariaLabel="Тип сграда"
+              value={form.building_type}
+              onChange={(v) => setForm((f) => ({ ...f, building_type: v }))}
+              options={BUILDING_TYPES.map((bt) => ({ value: bt.key, label: bt.label }))}
+            />
           </Field>
           <Field label="Мярка">
             <input value={form.unit} onChange={(e) => setForm(f => ({ ...f, unit: e.target.value }))} className="oe-input" placeholder="м3/м2 РЗП" />

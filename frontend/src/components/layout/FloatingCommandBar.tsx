@@ -73,7 +73,6 @@ export function FloatingCommandBar() {
 
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [filter, setFilter] = useState<Group | null>(null);
   const [hintIdx, setHintIdx] = useState(0);
   const [hintFading, setHintFading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -122,9 +121,8 @@ export function FloatingCommandBar() {
 
   const q = query.trim();
   const matchedRoutes = useMemo(() => {
-    const pool = filter ? ROUTES.filter((r) => r.group === filter) : ROUTES;
-    if (!q) return pool;
-    return pool
+    if (!q) return ROUTES;
+    return ROUTES
       .map((r) => ({
         r,
         score: Math.max(
@@ -136,7 +134,7 @@ export function FloatingCommandBar() {
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.r);
-  }, [q, filter]);
+  }, [q]);
 
   const matchedDrawings = useMemo(() => {
     if (!q) return recent;
@@ -156,9 +154,9 @@ export function FloatingCommandBar() {
   );
 
   // Default the highlighted row to whichever route matches the current page.
-  // Falls back to 0 once the user starts typing or filtering.
+  // Falls back to 0 once the user starts typing.
   const currentRouteIdx = useMemo(() => {
-    if (q || filter) return 0;
+    if (q) return 0;
     const idx = flatResults.findIndex((x) => {
       if (x.kind !== 'route') return false;
       if (x.data.path === '/dashboard') {
@@ -167,7 +165,7 @@ export function FloatingCommandBar() {
       return pathname === x.data.path || pathname.startsWith(x.data.path + '/');
     });
     return idx >= 0 ? idx : 0;
-  }, [pathname, q, filter, flatResults]);
+  }, [pathname, q, flatResults]);
 
   useEffect(() => setActiveIdx(currentRouteIdx), [currentRouteIdx]);
 
@@ -250,32 +248,8 @@ export function FloatingCommandBar() {
         </div>
       )}
 
-      {/* Bar itself — slightly softer radius (not a hard pill) so the two-row
-          layout reads as one unit without weird half-circle cuts. */}
-      <div className="kcc-floating-surface kcc-floating-panel px-3 py-2.5">
-        {/* Top row: group filter chips */}
-        <div className="flex items-center gap-1.5 mb-2 px-1">
-          {(['Работа', 'Настройки'] as Group[]).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setFilter(filter === g ? null : g)}
-              className={clsx(
-                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border',
-                filter === g
-                  ? 'border-[color:var(--oe-accent)]/30 text-[color:var(--oe-accent)] bg-[color:var(--oe-accent-soft-bg)]'
-                  : 'text-content-tertiary hover:text-content-secondary border-transparent',
-              )}
-            >
-              {g}
-            </button>
-          ))}
-          <span className="ml-auto text-[10px] text-content-tertiary pr-1">
-            {ROUTES.length} места
-          </span>
-        </div>
-
-        {/* Input row */}
+      {/* Bar itself */}
+      <div className="kcc-floating-surface kcc-floating-panel px-3 py-2">
         <div className="flex items-center gap-2 px-1">
           <Search size={16} className="flex-none text-content-tertiary" />
           <div className="flex-1 min-w-0 relative">

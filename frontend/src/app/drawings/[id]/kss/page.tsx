@@ -10,6 +10,7 @@ import { Skeleton, SkeletonCard, SkeletonRow } from '@/components/ui/Skeleton';
 import { WidgetCarousel, type WidgetSlide } from '@/components/ui/WidgetCarousel';
 import { api } from '@/lib/api';
 import { DEFAULT_PRICING, type PricingDefaults } from '@/types/config';
+import { Select } from '@/components/ui/Select';
 import type { KssCorrectionItem, KssSuggestion } from '@/types';
 
 interface KssItem {
@@ -847,11 +848,16 @@ function SectionItemsTable({ section, sectionIdx, onEdit, drawingId, isAdding, o
                   placeholder="Доставка и монтаж на..." className="w-full bg-transparent border-b border-sky-500/40 text-sm outline-none px-1 py-0.5" />
               </td>
               <td className="px-3 py-1.5">
-                <select value={newItem.unit} onChange={e => setNewItem(p => ({ ...p, unit: e.target.value }))}
-                  className="bg-surface-tertiary text-xs rounded px-1 py-0.5 border border-sky-500/30">
-                  <option>м2</option><option>м3</option><option>м</option><option>м.л.</option>
-                  <option>бр</option><option>кг</option><option>тон</option><option>компл</option>
-                </select>
+                <Select
+                  size="sm"
+                  ariaLabel="Unit"
+                  value={newItem.unit}
+                  onChange={(v) => setNewItem((p) => ({ ...p, unit: v }))}
+                  options={['м2', 'м3', 'м', 'м.л.', 'бр', 'кг', 'тон', 'компл'].map((u) => ({
+                    value: u,
+                    label: u,
+                  }))}
+                />
               </td>
               <td className="px-3 py-1.5">
                 <input type="number" value={newItem.quantity || ''} onChange={e => setNewItem(p => ({ ...p, quantity: parseFloat(e.target.value) || 0 }))}

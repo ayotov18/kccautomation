@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Plus, Upload, RefreshCw, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Drawing } from '@/types';
+import { Select } from '@/components/ui/Select';
 
 interface CorpusImport {
   id: string;
@@ -339,18 +340,16 @@ export function PriceLibrarySection() {
       {/* Upload-target drawing picker */}
       <div className="flex items-center gap-3 flex-wrap text-[11.5px] text-content-tertiary">
         <span>Next upload links to:</span>
-        <select
+        <Select
+          size="sm"
+          ariaLabel="Link uploaded offer to drawing"
           value={linkDrawingId}
-          onChange={(e) => setLinkDrawingId(e.target.value)}
-          className="bg-surface-tertiary border border-border-light rounded-full px-3 py-1.5 text-xs text-content-primary outline-none"
-        >
-          <option value="">— No link (whole-corpus RAG)</option>
-          {drawings.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.filename}
-            </option>
-          ))}
-        </select>
+          onChange={setLinkDrawingId}
+          options={[
+            { value: '', label: '— No link (whole-corpus RAG)' },
+            ...drawings.map((d) => ({ value: d.id, label: d.filename })),
+          ]}
+        />
       </div>
 
       {uploadMsg && (
@@ -387,18 +386,16 @@ export function PriceLibrarySection() {
                     {imp.filename}
                   </td>
                   <td>
-                    <select
+                    <Select
+                      size="sm"
+                      ariaLabel="Linked drawing"
                       value={imp.drawing_id ?? ''}
-                      onChange={(e) => handleRelink(imp.id, e.target.value)}
-                      className="w-full bg-transparent border border-border-light/50 rounded-full px-2 py-1 text-[12px] text-content-secondary outline-none hover:border-border-light"
-                    >
-                      <option value="">— None</option>
-                      {drawings.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.filename}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => handleRelink(imp.id, v)}
+                      options={[
+                        { value: '', label: '— None' },
+                        ...drawings.map((d) => ({ value: d.id, label: d.filename })),
+                      ]}
+                    />
                   </td>
                   <td className="oe-num">{imp.sheet_count}</td>
                   <td className="oe-num">{imp.row_count}</td>
@@ -431,21 +428,16 @@ export function PriceLibrarySection() {
           placeholder="Search (description, e.g. KVH, OSB, дограма…)"
           className="oe-input flex-1 min-w-[220px] !rounded-full"
         />
-        <select
+        <Select
+          size="sm"
+          ariaLabel="Scope to offer"
           value={scopeImportId}
-          onChange={(e) => setScopeImportId(e.target.value)}
-          className="bg-surface-tertiary border border-border-light rounded-full px-3 py-1.5 text-xs text-content-primary outline-none"
-        >
-          <option value="">All offers</option>
-          {imports.map((imp) => (
-            <option key={imp.id} value={imp.id}>
-              {imp.filename}
-            </option>
-          ))}
-          <option value="manual" disabled>
-            ──────────
-          </option>
-        </select>
+          onChange={setScopeImportId}
+          options={[
+            { value: '', label: 'All offers' },
+            ...imports.map((imp) => ({ value: imp.id, label: imp.filename })),
+          ]}
+        />
         <button
           onClick={() => fetchRows(search, scopeImportId, page)}
           className="oe-btn-ghost oe-btn-sm"
@@ -820,17 +812,15 @@ function AddRowModal({
             />
           </Field>
           <Field label="Unit *">
-            <select
+            <Select
+              ariaLabel="Unit"
               value={form.unit}
-              onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-              className="oe-input"
-            >
-              {['М2', 'М3', 'М', 'БР', 'КГ', 'Т', 'Л', 'КОМПЛ.'].map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
+              options={['М2', 'М3', 'М', 'БР', 'КГ', 'Т', 'Л', 'КОМПЛ.'].map((u) => ({
+                value: u,
+                label: u,
+              }))}
+            />
           </Field>
           <Field label="Qty">
             <input
@@ -872,18 +862,15 @@ function AddRowModal({
           </Field>
           <div className="col-span-2">
             <Field label="Pin to offer (optional)">
-              <select
+              <Select
+                ariaLabel="Pin to offer"
                 value={form.import_id}
-                onChange={(e) => setForm((f) => ({ ...f, import_id: e.target.value }))}
-                className="oe-input"
-              >
-                <option value="">— Manual (not pinned)</option>
-                {imports.map((imp) => (
-                  <option key={imp.id} value={imp.id}>
-                    {imp.filename}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, import_id: v }))}
+                options={[
+                  { value: '', label: '— Manual (not pinned)' },
+                  ...imports.map((imp) => ({ value: imp.id, label: imp.filename })),
+                ]}
+              />
             </Field>
           </div>
         </div>

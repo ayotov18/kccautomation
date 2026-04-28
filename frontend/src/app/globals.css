@@ -69,13 +69,16 @@
      The `.dark` class on <html> is kept so any existing `.dark`-scoped
      selectors continue to match. */
 
-  --oe-bg: oklch(0.14 0.012 260);
-  --oe-bg-secondary: oklch(0.17 0.012 260);
-  --oe-bg-tertiary: oklch(0.20 0.012 260);
-  --oe-bg-elevated: oklch(0.235 0.014 260);
+  /* Tones are now closely-spaced — depth comes from hairlines and glass,
+     not from color-block stacking. The product no longer has the
+     "gray box on a darker page" look. */
+  --oe-bg: oklch(0.145 0.012 260);
+  --oe-bg-secondary: oklch(0.16 0.012 260);
+  --oe-bg-tertiary: oklch(0.175 0.012 260);
+  --oe-bg-elevated: oklch(0.165 0.012 260);
 
-  --oe-border: oklch(0.32 0.014 260);
-  --oe-border-light: oklch(0.27 0.014 260);
+  --oe-border: oklch(0.30 0.014 260);
+  --oe-border-light: oklch(0.24 0.014 260);
 
   --oe-text-primary: oklch(0.95 0.005 260);
   --oe-text-secondary: oklch(0.78 0.008 260);
@@ -264,32 +267,38 @@
   }
 
   /* ── Cards ──────────────────────────────────────────────────────────
-     Cards use border + bg shift, not shadow, for elevation. The interactive
-     variant lifts border darkness on hover; no transform. */
+     Subtle liquid-glass treatment everywhere by default. Page bg shows
+     through ~20%, hairline + inset white-1px highlight provide the lift.
+     No gray-box-on-dark-page look — depth is structural, not tonal. */
   .oe-card {
-    background: var(--oe-bg-elevated);
-    border: 1px solid var(--oe-border-light);
+    background: color-mix(in oklch, var(--oe-bg-elevated) 80%, transparent);
+    border: 1px solid color-mix(in oklch, white 5%, var(--oe-border-light));
     border-radius: var(--oe-radius-lg);
-    transition: background-color 200ms var(--ease-oe), border-color 200ms var(--ease-oe);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+    transition: border-color 200ms var(--ease-oe);
   }
   .oe-card-interactive {
-    background: var(--oe-bg-elevated);
-    border: 1px solid var(--oe-border-light);
+    background: color-mix(in oklch, var(--oe-bg-elevated) 80%, transparent);
+    border: 1px solid color-mix(in oklch, white 5%, var(--oe-border-light));
     border-radius: var(--oe-radius-lg);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
     cursor: pointer;
-    transition: background-color 200ms var(--ease-oe), border-color 200ms var(--ease-oe), box-shadow 200ms var(--ease-oe);
+    transition: border-color 200ms var(--ease-oe), background-color 200ms var(--ease-oe);
   }
   .oe-card-interactive:hover {
-    border-color: var(--oe-border);
-    background: color-mix(in oklch, var(--oe-bg-elevated) 88%, var(--oe-bg-tertiary));
+    border-color: color-mix(in oklch, white 10%, var(--oe-border));
+    background: color-mix(in oklch, var(--oe-bg-elevated) 90%, transparent);
   }
   .oe-card-interactive:active { background: var(--oe-bg-tertiary); }
 
-  /* Glass card — opt-in liquid-glass treatment from landing. Use at most
-     one per page (hero KPI strip or drawing-detail inspector). */
+  /* Stronger glass — opt-in for hero KPI strip / inspectors. */
   .oe-card-glass {
-    background: color-mix(in oklch, var(--oe-bg-elevated) 70%, transparent);
-    border: 1px solid color-mix(in oklch, white 6%, var(--oe-border-light));
+    background: color-mix(in oklch, var(--oe-bg-elevated) 60%, transparent);
+    border: 1px solid color-mix(in oklch, white 7%, var(--oe-border-light));
     border-radius: var(--oe-radius-lg);
     backdrop-filter: blur(24px) saturate(1.6);
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
@@ -297,19 +306,29 @@
       inset 0 1px 0 rgb(255 255 255 / 0.04),
       0 8px 24px -8px rgb(0 0 0 / 0.5);
   }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .oe-card, .oe-card-interactive, .oe-card-glass {
+      background: var(--oe-bg-elevated);
+    }
+  }
 
   /* ── KPI strip (Stripe-style) ──────────────────────────────────────── */
   .oe-kpi {
-    background: var(--oe-bg-elevated);
-    border: 1px solid var(--oe-border-light);
+    background: color-mix(in oklch, var(--oe-bg-elevated) 80%, transparent);
+    border: 1px solid color-mix(in oklch, white 5%, var(--oe-border-light));
     border-radius: var(--oe-radius-lg);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
     padding: 18px 20px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     transition: border-color 200ms var(--ease-oe);
   }
-  .oe-kpi:hover { border-color: var(--oe-border); }
+  .oe-kpi:hover {
+    border-color: color-mix(in oklch, white 10%, var(--oe-border));
+  }
   .oe-kpi-value {
     font-family: var(--font-family-mono);
     font-variant-numeric: tabular-nums;
@@ -452,9 +471,11 @@
     display: inline-flex;
     gap: 4px;
     padding: 4px;
-    background: var(--oe-bg-tertiary);
-    border: 1px solid var(--oe-border-light);
+    background: color-mix(in oklch, var(--oe-bg-elevated) 60%, transparent);
+    border: 1px solid color-mix(in oklch, white 5%, var(--oe-border-light));
     border-radius: 9999px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   .oe-tab {
     height: 28px; padding: 0 14px;
@@ -468,9 +489,9 @@
   }
   .oe-tab:hover { color: var(--oe-text-primary); }
   .oe-tab[data-active="true"], .oe-tab.is-active {
-    background: var(--oe-bg-elevated);
+    background: color-mix(in oklch, white 6%, var(--oe-bg-elevated));
     color: var(--oe-text-primary);
-    box-shadow: inset 0 0 0 1px var(--oe-border-light);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, white 7%, var(--oe-border-light));
   }
 
   /* ── Badge ────────────────────────────────────────────────────────── */
@@ -502,18 +523,20 @@
     text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--oe-text-quaternary);
     background: transparent;
-    border-bottom: 1px solid var(--oe-border-light);
+    border-bottom: 1px solid color-mix(in oklch, white 5%, var(--oe-border-light));
   }
   .oe-table td {
     height: 36px;
     padding: 0 14px;
-    border-bottom: 1px solid var(--oe-border-light);
+    border-bottom: 1px solid color-mix(in oklch, white 3%, var(--oe-border-light));
     font-size: 13px;
     color: var(--oe-text-primary);
     vertical-align: middle;
   }
   .oe-table tr:last-child td { border-bottom: 0; }
-  .oe-table tr:hover td { background: var(--oe-bg-secondary); }
+  .oe-table tr:hover td {
+    background: color-mix(in oklch, white 4%, transparent);
+  }
   .oe-table .oe-num { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; text-align: right; }
 
   /* ── Animations ───────────────────────────────────────────────────── */
@@ -604,6 +627,110 @@
     background-clip: text;
     color: transparent;
     animation: kccShimmerSweep 6s ease-in-out infinite;
+  }
+
+  /* ── Select (Radix-based) ─────────────────────────────────────────
+     Filled card-tone trigger + glass popover with amber-tint selected
+     row. See components/ui/Select.tsx. */
+  .kcc-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 36px;
+    padding: 0 10px 0 12px;
+    border-radius: 8px;
+    background: var(--oe-bg-elevated);
+    border: 1px solid color-mix(in oklch, white 8%, transparent);
+    color: var(--oe-text-primary);
+    font: 500 13px/1 var(--font-family-sans);
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 140ms var(--ease-oe), background-color 140ms var(--ease-oe);
+    min-width: 140px;
+  }
+  .kcc-select-trigger[data-placeholder] { color: var(--oe-text-tertiary); }
+  .kcc-select-trigger:hover { border-color: color-mix(in oklch, white 14%, transparent); }
+  .kcc-select-trigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--oe-bg-elevated), 0 0 0 4px var(--oe-accent-ring);
+  }
+  .kcc-select-trigger[data-state="open"] {
+    border-color: color-mix(in oklch, var(--oe-accent) 35%, transparent);
+  }
+  .kcc-select-trigger[data-disabled] { opacity: 0.4; pointer-events: none; }
+  .kcc-select-trigger-sm { height: 28px; font-size: 12px; padding: 0 8px 0 10px; min-width: 120px; }
+
+  .kcc-select-content {
+    width: var(--radix-select-content-width, auto);
+    min-width: 180px;
+    max-height: 320px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: color-mix(in oklch, var(--oe-bg-elevated) 70%, transparent);
+    border: 1px solid color-mix(in oklch, white 8%, transparent);
+    box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6), 0 1px 0 rgb(255 255 255 / 0.04) inset;
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    transform-origin: var(--radix-select-content-transform-origin);
+    z-index: 100;
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .kcc-select-content { background: var(--oe-bg-elevated); }
+  }
+  .kcc-select-content[data-state="open"] {
+    animation: kccPopIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .kcc-select-content[data-state="closed"] {
+    animation: kccPopOut 100ms ease-in;
+  }
+  @keyframes kccPopIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes kccPopOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.98); }
+  }
+
+  .kcc-select-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 28px 0 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--oe-text-secondary);
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+  }
+  .kcc-select-item[data-highlighted] {
+    background: rgb(255 255 255 / 0.05);
+    color: var(--oe-text-primary);
+  }
+  .kcc-select-item[data-state="checked"] {
+    background: var(--oe-accent-soft-bg);
+    color: var(--oe-accent);
+  }
+  .kcc-select-item[data-disabled] { opacity: 0.4; pointer-events: none; }
+  .kcc-select-item-check {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--oe-accent);
+    display: inline-flex;
+  }
+  .kcc-select-item-hint {
+    margin-left: auto;
+    font-family: var(--font-family-mono);
+    font-size: 11px;
+    color: var(--oe-text-quaternary);
+    padding-right: 18px;
   }
 
   /* KSS accordion scroll fade */

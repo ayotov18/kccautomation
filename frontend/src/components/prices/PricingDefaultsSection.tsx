@@ -18,6 +18,7 @@ import {
 } from '@/types/config';
 import { Check, Save, RotateCcw } from 'lucide-react';
 import { symbol } from '@/lib/currency';
+import { Select } from '@/components/ui/Select';
 
 type Saving = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -128,15 +129,14 @@ export function PricingDefaultsSection() {
           <SubSection title="Валута и ДДС">
             <div className="grid grid-cols-2 gap-4">
               <Field label="Валута">
-                <select
+                <Select
+                  ariaLabel="Валута"
                   value={state.currency}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, currency: e.target.value as 'EUR' | 'EUR' }))
+                  onChange={(v) =>
+                    setState((s) => ({ ...s, currency: v as 'EUR' | 'EUR' }))
                   }
-                  className="oe-input"
-                >
-                  <option value="EUR">EUR (€) — стандартна от 2026</option>
-                </select>
+                  options={[{ value: 'EUR', label: 'EUR (€) — стандартна от 2026' }]}
+                />
               </Field>
               <PctField
                 label="ДДС ставка"

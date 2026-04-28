@@ -6,6 +6,7 @@ import type { ScrapedPriceItem, ScrapeSource } from '@/types';
 import { PriceLibrarySection } from '@/components/prices/PriceLibrarySection';
 import { QuantityNormsSection } from '@/components/prices/QuantityNormsSection';
 import { PricingDefaultsSection } from '@/components/prices/PricingDefaultsSection';
+import { Select } from '@/components/ui/Select';
 
 interface PriceListInfo {
   id: string;
@@ -415,16 +416,18 @@ export default function PricesPage() {
               placeholder="Search by description or SEK code..."
               className="flex-1 px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm focus:outline-none focus:border-gray-500"
             />
-            <select
+            <Select
+              size="sm"
+              ariaLabel="Filter by source"
               value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm text-content-primary"
-            >
-              <option value="">All sources</option>
-              <option value="daibau.bg">daibau.bg</option>
-              <option value="mr-bricolage.bg">mr-bricolage.bg</option>
-              <option value="manual">Manual</option>
-            </select>
+              onChange={setSourceFilter}
+              options={[
+                { value: '', label: 'All sources' },
+                { value: 'daibau.bg', label: 'daibau.bg' },
+                { value: 'mr-bricolage.bg', label: 'mr-bricolage.bg' },
+                { value: 'manual', label: 'Manual' },
+              ]}
+            />
           </div>
 
           {loadingPrices ? (
@@ -507,15 +510,15 @@ export default function PricesPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-content-secondary mb-1">Мярка</label>
-                  <select value={addForm.unit} onChange={e => setAddForm(f => ({...f, unit: e.target.value}))} className="w-full px-3 py-2 bg-surface-tertiary border border-border-light rounded text-sm">
-                    <option value="М2">М2</option>
-                    <option value="М3">М3</option>
-                    <option value="м">м</option>
-                    <option value="бр.">бр.</option>
-                    <option value="кг">кг</option>
-                    <option value="тон">тон</option>
-                    <option value="компл.">компл.</option>
-                  </select>
+                  <Select
+                    ariaLabel="Мярка"
+                    value={addForm.unit}
+                    onChange={(v) => setAddForm((f) => ({ ...f, unit: v }))}
+                    options={['М2', 'М3', 'м', 'бр.', 'кг', 'тон', 'компл.'].map((u) => ({
+                      value: u,
+                      label: u,
+                    }))}
+                  />
                 </div>
               </div>
               <div>
