@@ -136,6 +136,15 @@ export function PriceLibrarySection() {
     api.listDrawings().then(setDrawings).catch(() => setDrawings([]));
   }, [fetchImports]);
 
+  // Default scope: the most recent offer. Lands the user on a single
+  // offer's worth of rows instead of an interleaved 3-sheet dump that
+  // makes per-sheet totals impossible to read.
+  useEffect(() => {
+    if (imports.length > 0 && scopeImportId === '') {
+      setScopeImportId(imports[0].id);
+    }
+  }, [imports, scopeImportId]);
+
   // Debounced refetch on filter change.
   useEffect(() => {
     const t = setTimeout(() => fetchRows(search, scopeImportId, scopeSheet, page), 200);
@@ -630,114 +639,128 @@ export function PriceLibrarySection() {
                 </td>
               </tr>
             ) : (
-              rows.map((r) => {
-                const importedFile = r.import_id
-                  ? importMap.get(r.import_id)?.filename ?? '—'
-                  : 'manual';
-                const sheet = r.source_sheet ?? '';
-                const rowTotal =
-                  r.quantity != null && r.total_unit_price_eur != null
-                    ? r.quantity * r.total_unit_price_eur
-                    : null;
-                return (
-                  <tr key={r.id}>
-                    <td className="text-content-secondary max-w-md">
-                      <EditableCell
-                        editable={editMode}
-                        value={r.description}
-                        onCommit={(v) => handleEdit(r.id, 'description', v)}
-                      />
-                    </td>
-                    <td className="text-xs">
-                      <EditableCell
-                        editable={editMode}
-                        value={r.unit}
-                        onCommit={(v) => handleEdit(r.id, 'unit', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.quantity}
-                        decimals={3}
-                        onCommit={(v) => handleEdit(r.id, 'quantity', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.material_price_eur}
-                        onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.labor_price_eur}
-                        onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs font-medium text-content-primary">
-                      {r.total_unit_price_eur?.toFixed(2) ?? '—'}
-                    </td>
-                    <td className="oe-num text-xs font-medium text-content-primary">
-                      {rowTotal != null ? rowTotal.toFixed(2) : '—'}
-                    </td>
-                    <td
-                      className="text-[11px] text-content-tertiary"
-                      title={importedFile}
-                    >
-                      {sheet ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="oe-badge" data-variant="info">
-                            {sheet}
+              (() => {
+                /* Render the rows; whenever the sheet changes, inject a
+                   per-sheet «Общо» subtotal row so each XLSX tab has its
+                   own running total visible — same pattern the user sees
+                   in Excel (row 33 "Общо в Евро без ДДС" per sheet). */
+                const elements: React.ReactNode[] = [];
+                let sheetSum = 0;
+                let sheetKey: string | null = null;
+                let sheetLabel: string = '';
+                const flushSheet = () => {
+                  if (sheetKey !== null && sheetSum > 0) {
+                    elements.push(
+                      <tr key={`subtotal-${sheetKey}`} className="kcc-subtotal-row">
+                        <td colSpan={6} className="text-right text-content-secondary">
+                          <span className="oe-eyebrow mr-3">
+                            Общо · {sheetLabel}
                           </span>
-                          <span className="font-numeric text-content-quaternary">
-                            r{r.source_row ?? '?'}
+                        </td>
+                        <td className="oe-num text-content-primary font-medium">
+                          {sheetSum.toFixed(2)} €
+                        </td>
+                        <td colSpan={2}></td>
+                      </tr>,
+                    );
+                  }
+                };
+                for (const r of rows) {
+                  const importedFile = r.import_id
+                    ? importMap.get(r.import_id)?.filename ?? '—'
+                    : 'manual';
+                  const sheet = r.source_sheet ?? '';
+                  const rowTotal =
+                    r.quantity != null && r.total_unit_price_eur != null
+                      ? r.quantity * r.total_unit_price_eur
+                      : null;
+                  const key = `${r.import_id ?? 'manual'}::${sheet}`;
+                  if (key !== sheetKey) {
+                    flushSheet();
+                    sheetKey = key;
+                    sheetLabel = sheet ? sheet : 'Manual';
+                    sheetSum = 0;
+                  }
+                  if (rowTotal != null) sheetSum += rowTotal;
+                  elements.push(
+                    <tr key={r.id}>
+                      <td className="text-content-secondary max-w-md">
+                        <EditableCell
+                          editable={editMode}
+                          value={r.description}
+                          onCommit={(v) => handleEdit(r.id, 'description', v)}
+                        />
+                      </td>
+                      <td className="text-xs">
+                        <EditableCell
+                          editable={editMode}
+                          value={r.unit}
+                          onCommit={(v) => handleEdit(r.id, 'unit', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.quantity}
+                          decimals={3}
+                          onCommit={(v) => handleEdit(r.id, 'quantity', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.material_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.labor_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs font-medium text-content-primary">
+                        {r.total_unit_price_eur?.toFixed(2) ?? '—'}
+                      </td>
+                      <td className="oe-num text-xs font-medium text-content-primary">
+                        {rowTotal != null ? rowTotal.toFixed(2) : '—'}
+                      </td>
+                      <td
+                        className="text-[11px] text-content-tertiary"
+                        title={importedFile}
+                      >
+                        {sheet ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="oe-badge" data-variant="info">
+                              {sheet}
+                            </span>
+                            <span className="font-numeric text-content-quaternary">
+                              r{r.source_row ?? '?'}
+                            </span>
                           </span>
-                        </span>
-                      ) : (
-                        <span className="oe-badge">manual</span>
-                      )}
-                    </td>
-                    <td className="!text-right">
-                      {editMode && (
-                        <button
-                          onClick={() => handleDeleteRow(r.id)}
-                          className="text-[11px]"
-                          style={{ color: 'var(--oe-error)' }}
-                          title="Delete row"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-            {!loading && !error && rows.length > 0 && (
-              <tr className="kcc-totals-row">
-                <td colSpan={6} className="text-right text-content-secondary">
-                  <span className="oe-eyebrow mr-3">
-                    {scopeImportId
-                      ? `Общо · ${importMap.get(scopeImportId)?.filename ?? ''}`
-                      : 'Общо · this page'}
-                  </span>
-                </td>
-                <td className="oe-num text-content-primary font-medium">
-                  {rows
-                    .reduce((sum, r) => {
-                      if (r.quantity != null && r.total_unit_price_eur != null) {
-                        return sum + r.quantity * r.total_unit_price_eur;
-                      }
-                      return sum;
-                    }, 0)
-                    .toFixed(2)}{' '}
-                  €
-                </td>
-                <td colSpan={2}></td>
-              </tr>
+                        ) : (
+                          <span className="oe-badge">manual</span>
+                        )}
+                      </td>
+                      <td className="!text-right">
+                        {editMode && (
+                          <button
+                            onClick={() => handleDeleteRow(r.id)}
+                            className="text-[11px]"
+                            style={{ color: 'var(--oe-error)' }}
+                            title="Delete row"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
+                    </tr>,
+                  );
+                }
+                flushSheet();
+                return elements;
+              })()
             )}
           </tbody>
         </table>

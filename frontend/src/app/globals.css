@@ -588,15 +588,15 @@
      don't shove non-skeleton rows around. */
   .kcc-skeleton-row td { padding-top: 10px; padding-bottom: 10px; }
 
-  /* Grand total row inside a data table — used at the bottom of the
-     price library to mirror the XLSX «Общо в Евро без ДДС» footer. */
-  .kcc-totals-row td {
-    background: color-mix(in oklch, white 3%, transparent) !important;
+  /* Per-sheet subtotal row, mirroring the XLSX «Общо в Евро без ДДС»
+     footer that appears once per sheet. */
+  .kcc-subtotal-row td {
+    background: color-mix(in oklch, var(--oe-accent) 8%, transparent) !important;
     border-top: 1px solid color-mix(in oklch, var(--oe-accent) 25%, var(--oe-border-light));
-    border-bottom: 0;
+    border-bottom: 1px solid color-mix(in oklch, var(--oe-accent) 25%, var(--oe-border-light));
     height: 36px !important;
   }
-  .kcc-totals-row:hover td { background: color-mix(in oklch, white 4%, transparent) !important; }
+  .kcc-subtotal-row:hover td { background: color-mix(in oklch, var(--oe-accent) 10%, transparent) !important; }
   /* Legacy keyframe for any old `animation: oeShimmer` callers. */
   @keyframes oeShimmer {
     0% { background-position: 200% 0; }
