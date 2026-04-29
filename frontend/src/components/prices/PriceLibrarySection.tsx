@@ -352,12 +352,6 @@ export function PriceLibrarySection() {
     }
   };
 
-  const drawingMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const d of drawings) m.set(d.id, d.filename);
-    return m;
-  }, [drawings]);
-
   const importMap = useMemo(() => {
     const m = new Map<string, CorpusImport>();
     for (const imp of imports) m.set(imp.id, imp);
