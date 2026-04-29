@@ -130,19 +130,14 @@ fn parse_sheet(range: &Range<Data>, sheet_name: &str) -> ParsedOffer {
             .and_then(cell_float)
             .unwrap_or(0.0);
 
+        // Drop only the truly empty rows (no description-meaningful unit
+        // and no numeric anywhere). Anything with a description goes in,
+        // even unpriced "Баня и оборудване" / "Транспорт" placeholders —
+        // the user wants the library to mirror the XLSX 1:1. RAG search
+        // already filters out priceless rows at query time, so they don't
+        // pollute matching.
         let any_value = mat_unit > 0.0 || lab_unit > 0.0 || total_row > 0.0 || qty.unwrap_or(0.0) > 0.0;
         if unit.is_empty() && !any_value {
-            out.skipped_rows += 1;
-            continue;
-        }
-
-        // RAG only returns useful answers when the row carries an actual
-        // price. Skip unpriced rows — they're typically category placeholders
-        // ("Каменна вата вътр. стени" with blank prices) that the offer
-        // engineer left for hand-pricing in a sister sheet. They pollute
-        // search results because trigram match doesn't know "no price" is
-        // worse than "any price".
-        if mat_unit <= 0.0 && lab_unit <= 0.0 && total_row <= 0.0 {
             out.skipped_rows += 1;
             continue;
         }
