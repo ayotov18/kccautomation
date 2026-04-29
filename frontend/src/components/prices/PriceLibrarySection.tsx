@@ -540,11 +540,17 @@ export function PriceLibrarySection() {
             <tr>
               <th>Description</th>
               <th className="w-16">Unit</th>
-              <th className="w-20 !text-right">Qty</th>
-              <th className="w-24 !text-right">Material €</th>
-              <th className="w-24 !text-right">Labour €</th>
-              <th className="w-24 !text-right">Total €</th>
-              <th className="w-28">Sheet</th>
+              <th className="w-20 !text-right" title="Quantity from the XLSX (column D)">Qty</th>
+              <th className="w-24 !text-right" title="Unit material price (XLSX column E)">Material € / unit</th>
+              <th className="w-24 !text-right" title="Unit labour price (XLSX column G)">Labour € / unit</th>
+              <th className="w-24 !text-right" title="Material + labour, per unit">Unit total €</th>
+              <th
+                className="w-24 !text-right"
+                title="Quantity × unit total — matches the XLSX «Общо» column"
+              >
+                Row total €
+              </th>
+              <th className="w-24">Sheet</th>
               <th className="w-8"></th>
             </tr>
           </thead>
@@ -558,6 +564,7 @@ export function PriceLibrarySection() {
                   <td className="!text-right"><div className="oe-skeleton h-3 w-14 ml-auto" /></td>
                   <td className="!text-right"><div className="oe-skeleton h-3 w-14 ml-auto" /></td>
                   <td className="!text-right"><div className="oe-skeleton h-3 w-16 ml-auto" /></td>
+                  <td className="!text-right"><div className="oe-skeleton h-3 w-16 ml-auto" /></td>
                   <td><div className="oe-skeleton h-3 w-20" /></td>
                   <td></td>
                 </tr>
@@ -565,7 +572,7 @@ export function PriceLibrarySection() {
             ) : error ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="text-center !py-6 text-xs"
                   style={{ color: 'var(--oe-error)' }}
                 >
@@ -574,7 +581,7 @@ export function PriceLibrarySection() {
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center !py-10 text-content-tertiary">
+                <td colSpan={9} className="text-center !py-10 text-content-tertiary">
                   <div className="oe-display text-[18px] text-content-secondary">
                     {search || scopeImportId ? 'No matches.' : 'No rows yet.'}
                   </div>
@@ -586,80 +593,109 @@ export function PriceLibrarySection() {
                 </td>
               </tr>
             ) : (
-              rows.map((r) => {
-                const importedFile = r.import_id
-                  ? importMap.get(r.import_id)?.filename ?? '—'
-                  : 'manual';
-                const sheet = r.source_sheet ?? '';
-                return (
-                  <tr key={r.id}>
-                    <td className="text-content-secondary max-w-md">
-                      <EditableCell
-                        editable={editMode}
-                        value={r.description}
-                        onCommit={(v) => handleEdit(r.id, 'description', v)}
-                      />
-                    </td>
-                    <td className="text-xs">
-                      <EditableCell
-                        editable={editMode}
-                        value={r.unit}
-                        onCommit={(v) => handleEdit(r.id, 'unit', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.quantity}
-                        onCommit={(v) => handleEdit(r.id, 'quantity', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.material_price_eur}
-                        onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs">
-                      <EditableNumber
-                        editable={editMode}
-                        value={r.labor_price_eur}
-                        onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
-                      />
-                    </td>
-                    <td className="oe-num text-xs font-medium text-content-primary">
-                      {r.total_unit_price_eur?.toFixed(2) ?? '—'}
-                    </td>
-                    <td
-                      className="text-[11px] text-content-tertiary"
-                      title={
-                        sheet
-                          ? `Sheet "${sheet}" · row ${r.source_row ?? '–'} · ${importedFile}`
-                          : importedFile
-                      }
-                    >
-                      {sheet ? (
-                        <span className="oe-badge" data-variant="info">{sheet}</span>
-                      ) : (
-                        <span className="oe-badge">manual</span>
-                      )}
-                    </td>
-                    <td className="!text-right">
-                      {editMode && (
-                        <button
-                          onClick={() => handleDeleteRow(r.id)}
-                          className="text-[11px]"
-                          style={{ color: 'var(--oe-error)' }}
-                          title="Delete row"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
+              (() => {
+                /* Group rows by sheet so the user sees clear ТАСОС /
+                   Дани67 / Топос35 sections matching their workbook tabs. */
+                const elements: React.ReactNode[] = [];
+                let lastKey: string | null = null;
+                for (const r of rows) {
+                  const importedFile = r.import_id
+                    ? importMap.get(r.import_id)?.filename ?? '—'
+                    : 'manual';
+                  const sheet = r.source_sheet ?? '';
+                  const groupKey = `${r.import_id ?? 'manual'}::${sheet}`;
+                  if (groupKey !== lastKey) {
+                    lastKey = groupKey;
+                    elements.push(
+                      <tr key={`grp-${groupKey}`} className="kcc-group-header">
+                        <td colSpan={9}>
+                          <span className="oe-eyebrow">
+                            {sheet ? `Sheet ${sheet}` : 'Manual rows'}
+                          </span>
+                          <span className="ml-3 text-[11px] text-content-tertiary">
+                            {importedFile}
+                          </span>
+                        </td>
+                      </tr>,
+                    );
+                  }
+                  const rowTotal =
+                    r.quantity != null && r.total_unit_price_eur != null
+                      ? r.quantity * r.total_unit_price_eur
+                      : null;
+                  elements.push(
+                    <tr key={r.id}>
+                      <td className="text-content-secondary max-w-md">
+                        <EditableCell
+                          editable={editMode}
+                          value={r.description}
+                          onCommit={(v) => handleEdit(r.id, 'description', v)}
+                        />
+                      </td>
+                      <td className="text-xs">
+                        <EditableCell
+                          editable={editMode}
+                          value={r.unit}
+                          onCommit={(v) => handleEdit(r.id, 'unit', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.quantity}
+                          decimals={3}
+                          onCommit={(v) => handleEdit(r.id, 'quantity', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.material_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs">
+                        <EditableNumber
+                          editable={editMode}
+                          value={r.labor_price_eur}
+                          onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
+                        />
+                      </td>
+                      <td className="oe-num text-xs font-medium text-content-primary">
+                        {r.total_unit_price_eur?.toFixed(2) ?? '—'}
+                      </td>
+                      <td className="oe-num text-xs font-medium text-content-primary">
+                        {rowTotal != null ? rowTotal.toFixed(2) : '—'}
+                      </td>
+                      <td
+                        className="text-[11px] text-content-tertiary"
+                        title={`Row ${r.source_row ?? '–'} · ${importedFile}`}
+                      >
+                        {sheet ? (
+                          <span className="oe-badge" data-variant="info">
+                            {sheet}
+                          </span>
+                        ) : (
+                          <span className="oe-badge">manual</span>
+                        )}
+                      </td>
+                      <td className="!text-right">
+                        {editMode && (
+                          <button
+                            onClick={() => handleDeleteRow(r.id)}
+                            className="text-[11px]"
+                            style={{ color: 'var(--oe-error)' }}
+                            title="Delete row"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
+                    </tr>,
+                  );
+                }
+                return elements;
+              })()
             )}
           </tbody>
         </table>
@@ -870,14 +906,18 @@ function EditableCell({
 }
 
 // Inline-editable numeric cell. Empty string commits as 0.
+// `decimals` (default 2) controls how many decimal places we render. We
+// also trim trailing zeros, so 90.000 → "90" but 1.674 → "1.674".
 function EditableNumber({
   value,
   onCommit,
   editable,
+  decimals = 2,
 }: {
   value: number | null;
   onCommit: (v: number) => void;
   editable: boolean;
+  decimals?: number;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value === null ? '' : String(value));
@@ -886,10 +926,23 @@ function EditableNumber({
     setDraft(value === null ? '' : String(value));
   }, [value]);
 
+  const formatted = (() => {
+    if (value === null) return null;
+    const fixed = value.toFixed(decimals);
+    // Trim trailing zeros after decimal point but keep at least 2 digits
+    // when there's any fractional part (so 1640 stays "1640" but 2.184
+    // stays "2.184" and 1.5 stays "1.50").
+    if (!fixed.includes('.')) return fixed;
+    const trimmed = fixed.replace(/0+$/, '').replace(/\.$/, '');
+    return trimmed.includes('.')
+      ? trimmed
+      : trimmed; // integer — keep no trailing decimals
+  })();
+
   if (!editable) {
     return (
       <span className="block w-full text-right font-numeric">
-        {value === null ? <span className="text-content-tertiary">—</span> : value.toFixed(2)}
+        {formatted === null ? <span className="text-content-tertiary">—</span> : formatted}
       </span>
     );
   }
@@ -902,7 +955,7 @@ function EditableNumber({
         className="text-right w-full hover:bg-surface-secondary/40 rounded px-1 -mx-1 py-0.5 cursor-text font-numeric"
         title="Click to edit"
       >
-        {value === null ? <span className="text-content-tertiary">—</span> : value.toFixed(2)}
+        {formatted === null ? <span className="text-content-tertiary">—</span> : formatted}
       </button>
     );
   }
