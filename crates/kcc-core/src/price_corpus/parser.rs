@@ -76,6 +76,11 @@ fn parse_sheet(range: &Range<Data>, sheet_name: &str) -> ParsedOffer {
         return out;
     };
 
+    // calamine's Range starts at the first non-empty row, not at XLSX row 1.
+    // Without this offset, a header on real row 5 would be reported as row 4
+    // and the user couldn't cross-reference against the file in Excel.
+    let start_row: u32 = range.start().map(|(r, _)| r).unwrap_or(0);
+
     for (row_idx, row) in range.rows().enumerate() {
         if row_idx <= header_row_idx {
             continue;
@@ -175,7 +180,9 @@ fn parse_sheet(range: &Range<Data>, sheet_name: &str) -> ParsedOffer {
             labor_price_eur: lab_unit,
             total_unit_price_eur: total_unit_price,
             source_sheet: sheet_name.to_string(),
-            source_row: row_idx as u32 + 1, // 1-indexed for human-readability
+            // 1-indexed XLSX row that opens directly in Excel — matches what
+            // the user sees in the row gutter when they look at the workbook.
+            source_row: start_row + row_idx as u32 + 1,
         });
     }
 

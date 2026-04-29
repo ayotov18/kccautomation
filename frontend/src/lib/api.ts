@@ -622,6 +622,7 @@ class ApiClient {
     limit?: number;
     offset?: number;
     import_id?: string;
+    source_sheet?: string;
   }): Promise<{
     rows: Array<{
       id: string; sek_code: string | null; description: string; unit: string;
@@ -637,6 +638,7 @@ class ApiClient {
     if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
     if (opts?.offset !== undefined) qs.set('offset', String(opts.offset));
     if (opts?.import_id) qs.set('import_id', opts.import_id);
+    if (opts?.source_sheet) qs.set('source_sheet', opts.source_sheet);
     const q = qs.toString();
     return this.request(`/price-corpus${q ? `?${q}` : ''}`);
   }

@@ -69,6 +69,9 @@ export function PriceLibrarySection() {
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [search, setSearch] = useState('');
   const [scopeImportId, setScopeImportId] = useState<string>(''); // '' = all
+  /** Optional sheet-name scope. When set, the library shows only rows
+   *  from that XLSX tab — gives a 1:1 view against one Excel sheet. */
+  const [scopeSheet, setScopeSheet] = useState<string>('');
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +107,14 @@ export function PriceLibrarySection() {
   }, []);
 
   const fetchRows = useCallback(
-    async (q: string, importId: string, pageIdx: number) => {
+    async (q: string, importId: string, sheet: string, pageIdx: number) => {
       setLoading(true);
       setError(null);
       try {
         const data = await api.listCorpus({
           q: q || undefined,
           import_id: importId || undefined,
+          source_sheet: sheet || undefined,
           limit: PAGE_SIZE,
           offset: pageIdx * PAGE_SIZE,
         });
@@ -134,14 +138,14 @@ export function PriceLibrarySection() {
 
   // Debounced refetch on filter change.
   useEffect(() => {
-    const t = setTimeout(() => fetchRows(search, scopeImportId, page), 200);
+    const t = setTimeout(() => fetchRows(search, scopeImportId, scopeSheet, page), 200);
     return () => clearTimeout(t);
-  }, [search, scopeImportId, page, fetchRows]);
+  }, [search, scopeImportId, scopeSheet, page, fetchRows]);
 
   // Reset to page 0 when filters change.
   useEffect(() => {
     setPage(0);
-  }, [search, scopeImportId]);
+  }, [search, scopeImportId, scopeSheet]);
 
   const performUpload = async (
     file: File,
@@ -184,7 +188,7 @@ export function PriceLibrarySection() {
         });
       }
       await fetchImports();
-      await fetchRows(search, scopeImportId, page);
+      await fetchRows(search, scopeImportId, scopeSheet, page);
     } catch (err) {
       setUploadMsg({
         tone: 'err',
@@ -213,7 +217,7 @@ export function PriceLibrarySection() {
     if (!confirm(`Delete import "${filename}" and all its corpus rows?`)) return;
     await api.deleteCorpusImport(importId).catch(() => {});
     await fetchImports();
-    await fetchRows(search, scopeImportId, page);
+    await fetchRows(search, scopeImportId, scopeSheet, page);
   };
 
   const handleRelink = async (importId: string, drawingId: string) => {
@@ -252,7 +256,7 @@ export function PriceLibrarySection() {
       setEditsThisSession((n) => n + 1);
     } catch {
       // Refetch to reset state if the server rejected.
-      await fetchRows(search, scopeImportId, page);
+      await fetchRows(search, scopeImportId, scopeSheet, page);
     }
   };
 
@@ -345,12 +349,30 @@ export function PriceLibrarySection() {
       });
       setAddOpen(false);
       await fetchImports();
-      await fetchRows(search, scopeImportId, 0);
+      await fetchRows(search, scopeImportId, scopeSheet, 0);
       setPage(0);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to add row');
     }
   };
+
+  /**
+   * Distinct sheet names visible on the current page. Used to populate the
+   * Sheet filter dropdown — only shown when there's more than one sheet
+   * to choose from. Scope an offer first to see all its sheets here.
+   */
+  const sheetOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const order: string[] = [];
+    for (const r of rows) {
+      const s = r.source_sheet ?? '';
+      if (s && !seen.has(s)) {
+        seen.add(s);
+        order.push(s);
+      }
+    }
+    return order;
+  }, [rows]);
 
   const importMap = useMemo(() => {
     const m = new Map<string, CorpusImport>();
@@ -517,14 +539,29 @@ export function PriceLibrarySection() {
           size="sm"
           ariaLabel="Scope to offer"
           value={scopeImportId}
-          onChange={setScopeImportId}
+          onChange={(v) => {
+            setScopeImportId(v);
+            setScopeSheet(''); // reset sheet when offer changes
+          }}
           options={[
             { value: '', label: 'All offers' },
             ...imports.map((imp) => ({ value: imp.id, label: imp.filename })),
           ]}
         />
+        {sheetOptions.length > 1 && (
+          <Select
+            size="sm"
+            ariaLabel="Scope to sheet"
+            value={scopeSheet}
+            onChange={setScopeSheet}
+            options={[
+              { value: '', label: 'All sheets' },
+              ...sheetOptions.map((s) => ({ value: s, label: s })),
+            ]}
+          />
+        )}
         <button
-          onClick={() => fetchRows(search, scopeImportId, page)}
+          onClick={() => fetchRows(search, scopeImportId, scopeSheet, page)}
           className="oe-btn-ghost oe-btn-sm"
           title="Reload"
           aria-label="Reload"
@@ -648,11 +685,16 @@ export function PriceLibrarySection() {
                     </td>
                     <td
                       className="text-[11px] text-content-tertiary"
-                      title={`Row ${r.source_row ?? '–'} · ${importedFile}`}
+                      title={importedFile}
                     >
                       {sheet ? (
-                        <span className="oe-badge" data-variant="info">
-                          {sheet}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="oe-badge" data-variant="info">
+                            {sheet}
+                          </span>
+                          <span className="font-numeric text-content-quaternary">
+                            r{r.source_row ?? '?'}
+                          </span>
                         </span>
                       ) : (
                         <span className="oe-badge">manual</span>

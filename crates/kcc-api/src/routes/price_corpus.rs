@@ -340,6 +340,9 @@ struct ListCorpusQuery {
     /// Scope to a single import (offer XLSX). When omitted, returns the
     /// full corpus across imports + manual rows.
     import_id: Option<Uuid>,
+    /// Scope to a single sheet within an offer (e.g. "Торос35"). Combine
+    /// with `import_id` to nail down a specific tab of a specific file.
+    source_sheet: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -388,16 +391,18 @@ async fn list_corpus(
          WHERE user_id = $1
            AND ($2::text IS NULL OR description ILIKE $2)
            AND ($3::uuid IS NULL OR import_id = $3)
+           AND ($4::text IS NULL OR source_sheet = $4)
          ORDER BY
            import_id NULLS LAST,
            source_sheet NULLS LAST,
            source_row NULLS LAST,
            created_at DESC
-         LIMIT $4 OFFSET $5",
+         LIMIT $5 OFFSET $6",
     )
     .bind(user_id)
     .bind(filter.as_deref())
     .bind(q.import_id)
+    .bind(q.source_sheet.as_deref())
     .bind(limit)
     .bind(offset)
     .fetch_all(&state.db)
@@ -423,11 +428,13 @@ async fn list_corpus(
     let total: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM user_price_corpus WHERE user_id = $1
          AND ($2::text IS NULL OR description ILIKE $2)
-         AND ($3::uuid IS NULL OR import_id = $3)",
+         AND ($3::uuid IS NULL OR import_id = $3)
+         AND ($4::text IS NULL OR source_sheet = $4)",
     )
     .bind(user_id)
     .bind(filter.as_deref())
     .bind(q.import_id)
+    .bind(q.source_sheet.as_deref())
     .fetch_one(&state.db)
     .await
     .map_err(|e| ApiError::Internal(format!("DB error: {e}")))?;
