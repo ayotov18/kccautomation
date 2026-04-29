@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Plus, Upload, RefreshCw, X } from 'lucide-react';
+import { Plus, Upload, RefreshCw, X, Pencil, Check, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Drawing } from '@/types';
 import { Select } from '@/components/ui/Select';
@@ -77,6 +77,21 @@ export function PriceLibrarySection() {
   const [linkDrawingId, setLinkDrawingId] = useState<string>('');
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  /**
+   * Explicit edit mode: cells are read-only by default. The user has to
+   * click "Edit prices" to unlock them; on "Done" we surface a confirm
+   * dialog asking whether to regenerate KCC for any linked drawings.
+   */
+  const [editMode, setEditMode] = useState(false);
+  /** Tracks how many edits the user committed during this edit session.
+   *  When > 0 and the user clicks Done, we offer to regenerate. */
+  const [editsThisSession, setEditsThisSession] = useState(0);
+  /** When non-null, render the regenerate-confirm dialog. */
+  const [regenPrompt, setRegenPrompt] = useState<{
+    drawings: Array<{ id: string; filename: string }>;
+  } | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
 
   const fetchImports = useCallback(async () => {
     try {
@@ -234,10 +249,63 @@ export function PriceLibrarySection() {
     );
     try {
       await api.updateCorpusRow(rowId, { [field]: value });
+      setEditsThisSession((n) => n + 1);
     } catch {
       // Refetch to reset state if the server rejected.
       await fetchRows(search, scopeImportId, page);
     }
+  };
+
+  /**
+   * "Done" closes edit mode. If the user committed at least one edit and
+   * any imports are pinned to drawings, prompt to regenerate the KCC for
+   * those drawings — otherwise the report is now out of sync with the
+   * library prices.
+   */
+  const handleDoneEditing = () => {
+    if (editsThisSession === 0) {
+      setEditMode(false);
+      return;
+    }
+    const linked = imports
+      .filter((imp) => imp.drawing_id !== null)
+      .map((imp) => ({ id: imp.drawing_id!, filename: imp.drawing_filename ?? '—' }));
+    // Dedupe drawings (multiple offers can share one drawing in theory).
+    const seen = new Set<string>();
+    const unique = linked.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+    if (unique.length === 0) {
+      // Edits made but nothing pinned → just close, no prompt.
+      setEditMode(false);
+      setEditsThisSession(0);
+      return;
+    }
+    setRegenPrompt({ drawings: unique });
+  };
+
+  const handleRegenerate = async () => {
+    if (!regenPrompt) return;
+    setRegenerating(true);
+    try {
+      // Trigger price-research → KCC build for each linked drawing in
+      // RAG mode (the offer we just edited is the source of truth).
+      await Promise.all(
+        regenPrompt.drawings.map((d) =>
+          api.triggerAiKssGeneration(d.id, 'rag').catch(() => null),
+        ),
+      );
+      setUploadMsg({
+        tone: 'ok',
+        text: `KCC regeneration started for ${regenPrompt.drawings.length} drawing${
+          regenPrompt.drawings.length === 1 ? '' : 's'
+        }.`,
+      });
+    } catch {
+      setUploadMsg({ tone: 'err', text: 'Failed to trigger regeneration.' });
+    }
+    setRegenerating(false);
+    setRegenPrompt(null);
+    setEditMode(false);
+    setEditsThisSession(0);
   };
 
   const handleDeleteRow = async (rowId: string) => {
@@ -317,6 +385,26 @@ export function PriceLibrarySection() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {editMode ? (
+            <button
+              onClick={handleDoneEditing}
+              className="oe-btn-primary oe-btn-sm"
+              title="Exit edit mode"
+            >
+              <Check size={13} /> Done editing
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setEditMode(true);
+                setEditsThisSession(0);
+              }}
+              className="oe-btn-secondary oe-btn-sm"
+              title="Unlock cells for inline editing"
+            >
+              <Pencil size={13} /> Edit prices
+            </button>
+          )}
           <button
             onClick={() => setAddOpen(true)}
             className="oe-btn-secondary oe-btn-sm"
@@ -462,7 +550,7 @@ export function PriceLibrarySection() {
               <th className="w-24 !text-right">Material €</th>
               <th className="w-24 !text-right">Labour €</th>
               <th className="w-24 !text-right">Total €</th>
-              <th className="w-28">Origin</th>
+              <th className="w-28">Sheet</th>
               <th className="w-8"></th>
             </tr>
           </thead>
@@ -505,37 +593,43 @@ export function PriceLibrarySection() {
               </tr>
             ) : (
               rows.map((r) => {
-                const origin = r.import_id
+                const importedFile = r.import_id
                   ? importMap.get(r.import_id)?.filename ?? '—'
                   : 'manual';
+                const sheet = r.source_sheet ?? '';
                 return (
                   <tr key={r.id}>
                     <td className="text-content-secondary max-w-md">
                       <EditableCell
+                        editable={editMode}
                         value={r.description}
                         onCommit={(v) => handleEdit(r.id, 'description', v)}
                       />
                     </td>
                     <td className="text-xs">
                       <EditableCell
+                        editable={editMode}
                         value={r.unit}
                         onCommit={(v) => handleEdit(r.id, 'unit', v)}
                       />
                     </td>
                     <td className="oe-num text-xs">
                       <EditableNumber
+                        editable={editMode}
                         value={r.quantity}
                         onCommit={(v) => handleEdit(r.id, 'quantity', v)}
                       />
                     </td>
                     <td className="oe-num text-xs">
                       <EditableNumber
+                        editable={editMode}
                         value={r.material_price_eur}
                         onCommit={(v) => handleEdit(r.id, 'material_price_eur', v)}
                       />
                     </td>
                     <td className="oe-num text-xs">
                       <EditableNumber
+                        editable={editMode}
                         value={r.labor_price_eur}
                         onCommit={(v) => handleEdit(r.id, 'labor_price_eur', v)}
                       />
@@ -544,24 +638,30 @@ export function PriceLibrarySection() {
                       {r.total_unit_price_eur?.toFixed(2) ?? '—'}
                     </td>
                     <td
-                      className="text-[11px] text-content-tertiary truncate"
+                      className="text-[11px] text-content-tertiary"
                       title={
-                        r.import_id && drawingMap.has(importMap.get(r.import_id)?.drawing_id ?? '')
-                          ? `pinned to ${drawingMap.get(importMap.get(r.import_id)!.drawing_id!)}`
-                          : origin
+                        sheet
+                          ? `Sheet "${sheet}" · row ${r.source_row ?? '–'} · ${importedFile}`
+                          : importedFile
                       }
                     >
-                      {origin}
+                      {sheet ? (
+                        <span className="oe-badge" data-variant="info">{sheet}</span>
+                      ) : (
+                        <span className="oe-badge">manual</span>
+                      )}
                     </td>
                     <td className="!text-right">
-                      <button
-                        onClick={() => handleDeleteRow(r.id)}
-                        className="text-[11px]"
-                        style={{ color: 'var(--oe-error)' }}
-                        title="Delete row"
-                      >
-                        ✕
-                      </button>
+                      {editMode && (
+                        <button
+                          onClick={() => handleDeleteRow(r.id)}
+                          className="text-[11px]"
+                          style={{ color: 'var(--oe-error)' }}
+                          title="Delete row"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -645,6 +745,59 @@ export function PriceLibrarySection() {
         </div>
       )}
 
+      {/* Regenerate-after-edit prompt */}
+      {regenPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="oe-card max-w-md w-full p-5 space-y-4">
+            <div>
+              <h3 className="text-base font-medium text-content-primary">
+                Regenerate KCC?
+              </h3>
+              <p className="text-[12.5px] text-content-tertiary mt-1">
+                You changed{' '}
+                <span className="font-numeric">{editsThisSession}</span>{' '}
+                {editsThisSession === 1 ? 'cell' : 'cells'}. The previously
+                generated report{regenPrompt.drawings.length > 1 ? 's' : ''}{' '}
+                still reflects the old prices. Regenerate now to bring{' '}
+                {regenPrompt.drawings.length === 1 ? 'it' : 'them'} back in sync?
+              </p>
+            </div>
+            <ul className="text-xs space-y-1.5 max-h-40 overflow-y-auto rounded-lg border border-border-light/60 p-2">
+              {regenPrompt.drawings.map((d) => (
+                <li key={d.id} className="flex items-center gap-2 truncate">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-none"
+                    style={{ background: 'var(--oe-accent)' }}
+                  />
+                  <span className="truncate text-content-secondary">{d.filename}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setRegenPrompt(null);
+                  setEditMode(false);
+                  setEditsThisSession(0);
+                }}
+                disabled={regenerating}
+                className="oe-btn-ghost oe-btn-sm"
+              >
+                Skip — keep old report
+              </button>
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="oe-btn-primary oe-btn-sm"
+              >
+                <Sparkles size={13} />
+                {regenerating ? 'Starting…' : 'Regenerate KCC'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add row modal */}
       {addOpen && (
         <AddRowModal
@@ -659,13 +812,17 @@ export function PriceLibrarySection() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Inline-editable text cell. Click to edit, Enter / blur to commit, Esc to cancel.
+// Inline-editable text cell. Click to edit, Enter / blur to commit, Esc to
+// cancel. When `editable` is false the cell renders read-only — no click
+// affordance, no hover background, no cursor-text.
 function EditableCell({
   value,
   onCommit,
+  editable,
 }: {
   value: string;
   onCommit: (v: string) => void;
+  editable: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -673,6 +830,14 @@ function EditableCell({
   useEffect(() => {
     setDraft(value);
   }, [value]);
+
+  if (!editable) {
+    return (
+      <span className="block w-full">
+        {value || <span className="text-content-tertiary italic">empty</span>}
+      </span>
+    );
+  }
 
   if (!editing) {
     return (
@@ -714,9 +879,11 @@ function EditableCell({
 function EditableNumber({
   value,
   onCommit,
+  editable,
 }: {
   value: number | null;
   onCommit: (v: number) => void;
+  editable: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value === null ? '' : String(value));
@@ -724,6 +891,14 @@ function EditableNumber({
   useEffect(() => {
     setDraft(value === null ? '' : String(value));
   }, [value]);
+
+  if (!editable) {
+    return (
+      <span className="block w-full text-right font-numeric">
+        {value === null ? <span className="text-content-tertiary">—</span> : value.toFixed(2)}
+      </span>
+    );
+  }
 
   if (!editing) {
     return (

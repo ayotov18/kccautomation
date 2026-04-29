@@ -388,7 +388,11 @@ async fn list_corpus(
          WHERE user_id = $1
            AND ($2::text IS NULL OR description ILIKE $2)
            AND ($3::uuid IS NULL OR import_id = $3)
-         ORDER BY created_at DESC
+         ORDER BY
+           import_id NULLS LAST,
+           source_sheet NULLS LAST,
+           source_row NULLS LAST,
+           created_at DESC
          LIMIT $4 OFFSET $5",
     )
     .bind(user_id)
